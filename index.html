@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Margarito 2.0</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .login-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 40px;
+            margin: 50px auto;
+            max-width: 400px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            text-align: center;
+        }
+
+        .login-container h2 {
+            margin-bottom: 30px;
+            color: #feca57;
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .login-form input {
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        .login-form input::placeholder {
+            color: #666;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            border: none;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .btn-view {
+            background: linear-gradient(45deg, #4ecdc4, #45b7d1);
+            margin-top: 10px;
+        }
+
+        .admin-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .admin-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #26de81;
+            font-weight: bold;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            background: #26de81;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        .input-group input {
+            flex: 1;
+            padding: 12px 15px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 16px;
+        }
+
+        .input-group input::placeholder {
+            color: #666;
+        }
+
+        .btn-clear {
+            background: linear-gradient(45deg, #ff4757, #c44569);
+            margin-left: 10px;
+        }
+
+        .btn-logout {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+            padding: 8px 15px;
+            font-size: 14px;
+        }
+
+        .network-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #networkCanvas {
+            width: 100%;
+            height: 500px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+
+        .viewer-mode #networkCanvas {
+            cursor: default;
+        }
+
+        .admin-mode #networkCanvas {
+            cursor: grab;
+        }
+
+        .admin-mode #networkCanvas:active {
+            cursor: grabbing;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #feca57;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .connections-list {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .connection-item {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .delete-btn {
+            background: #ff4757;
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .delete-btn:hover {
+            background: #ff3742;
+        }
+
+        .error-message {
+            background: rgba(255, 71, 87, 0.2);
+            border: 1px solid #ff4757;
+            color: #ff4757;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .success-message {
+            background: rgba(38, 222, 129, 0.2);
+            border: 1px solid #26de81;
+            color: #26de81;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .viewer-notice {
+            background: rgba(52, 152, 219, 0.2);
+            border: 1px solid #3498db;
+            color: #3498db;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 768px) {
+            .input-group {
+                flex-direction: column;
+            }
+            
+            .admin-header {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="loginScreen">
+            <div class="header">
+                <h1>🌺 Margarito 2.0</h1>
+                <p>Visualiza la red de personas y sus conexiones</p>
+            </div>
+            
+            <div class="login-container">
+                <h2>🔐 Acceso</h2>
+                <div class="error-message" id="loginError"></div>
+                <div class="login-form">
+                    <input type="password" id="adminPassword" placeholder="Contraseña de administrador">
+                    <button class="btn" onclick="login()">Entrar como Administrador</button>
+                    <button class="btn btn-view" onclick="enterViewMode()">Solo Visualizar</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="mainScreen" class="hidden">
+            <div class="header">
+                <h1>🌐 Red de Conexiones</h1>
+                <p id="headerSubtitle">Explora la red de personas y sus conexiones</p>
+            </div>
+
+            <div id="adminPanel" class="admin-panel hidden">
+                <div class="admin-header">
+                    <div class="admin-status">
+                        <div class="status-dot"></div>
+                        <span>Modo Administrador Activo</span>
+                    </div>
+                    <button class="btn btn-logout" onclick="logout()">Cerrar Sesión</button>
+                </div>
+                <div class="error-message" id="errorMessage"></div>
+                <div class="success-message" id="successMessage"></div>
+                <div class="input-group">
+                    <input type="text" id="person1" placeholder="Primera persona">
+                    <input type="text" id="person2" placeholder="Segunda persona">
+                    <button class="btn" onclick="addConnection()">Conectar</button>
+                    <button class="btn btn-clear" onclick="clearNetwork()">Limpiar Todo</button>
+                </div>
+            </div>
+
+            <div id="viewerNotice" class="viewer-notice hidden">
+                <strong>👥 Modo de solo visualización</strong><br>
+                Estás viendo la red en tiempo real. Solo el administrador puede hacer cambios.
+                <button class="btn" onclick="logout()" style="margin-left: 15px; padding: 8px 15px; font-size: 14px;">Cambiar Modo</button>
+            </div>
+
+            <div class="network-container">
+                <canvas id="networkCanvas"></canvas>
+            </div>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalPersons">0</div>
+                    <div class="stat-label">Personas</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalConnections">0</div>
+                    <div class="stat-label">Conexiones</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="mostConnected">-</div>
+                    <div class="stat-label">Más Conectado</div>
+                </div>
+            </div>
+
+            <div class="connections-list">
+                <h3>Lista de Conexiones</h3>
+                <div id="connectionsList"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+
+    <script>
+        // *** PASO 1: REEMPLAZA ESTO CON LA CONFIGURACIÓN DE TU PROYECTO FIREBASE ***
+
+        const firebaseConfig = {
+          apiKey: "AIzaSyDkzMk-Kd-UHH0TAkNRK8y-2V5eUI7yJ_U",
+          authDomain: "margarito-2-a7389.firebaseapp.com",
+          projectId: "margarito-2-a7389",
+          storageBucket: "margarito-2-a7389.firebasestorage.app",
+          messagingSenderId: "585155068989",
+          appId: "1:585155068989:web:e8059a67ce8d6a89fed654",
+          measurementId: "G-YSG16VH3PH"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        class NetworkManager {
+            constructor() {
+                this.nodes = new Map();
+                this.edges = [];
+                this.canvas = document.getElementById('networkCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.isDragging = false;
+                this.dragNode = null;
+                this.mousePos = { x: 0, y: 0 };
+                this.animationId = null;
+                this.isAdminMode = false;
+                
+                this.setupCanvas();
+                this.animate();
+                this.setupRealtimeListener();
+            }
+
+            setupCanvas() {
+                const rect = this.canvas.getBoundingClientRect();
+                this.canvas.width = rect.width * 2;
+                this.canvas.height = rect.height * 2;
+                this.ctx.scale(2, 2);
+                this.canvas.style.width = rect.width + 'px';
+                this.canvas.style.height = rect.height + 'px';
+            }
+
+            enableAdminMode() {
+                this.isAdminMode = true;
+                document.body.classList.add('admin-mode');
+                document.body.classList.remove('viewer-mode');
+                this.setupEventListeners();
+                this.updateConnectionsList();
+            }
+
+            enableViewMode() {
+                this.isAdminMode = false;
+                document.body.classList.add('viewer-mode');
+                document.body.classList.remove('admin-mode');
+                this.removeEventListeners();
+                this.updateConnectionsList();
+            }
+
+            setupEventListeners() {
+                this.onMouseDown = this.onMouseDown.bind(this);
+                this.onMouseMove = this.onMouseMove.bind(this);
+                this.onMouseUp = this.onMouseUp.bind(this);
+
+                this.canvas.addEventListener('mousedown', this.onMouseDown);
+                this.canvas.addEventListener('mousemove', this.onMouseMove);
+                this.canvas.addEventListener('mouseup', this.onMouseUp);
+                this.canvas.addEventListener('mouseleave', this.onMouseUp);
+
+                window.addEventListener('resize', () => {
+                    setTimeout(() => this.setupCanvas(), 100);
+                });
+            }
+
+            removeEventListeners() {
+                this.canvas.removeEventListener('mousedown', this.onMouseDown);
+                this.canvas.removeEventListener('mousemove', this.onMouseMove);
+                this.canvas.removeEventListener('mouseup', this.onMouseUp);
+                this.canvas.removeEventListener('mouseleave', this.onMouseUp);
+            }
+
+            onMouseDown(e) {
+                if (!this.isAdminMode) return;
+
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                for (let [name, node] of this.nodes) {
+                    const dx = x - node.x;
+                    const dy = y - node.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < node.radius) {
+                        this.isDragging = true;
+                        this.dragNode = node;
+                        this.mousePos = { x, y };
+                        break;
+                    }
+                }
+            }
+
+            onMouseMove(e) {
+                if (!this.isAdminMode || !this.isDragging || !this.dragNode) return;
+
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                this.dragNode.x = Math.max(this.dragNode.radius, 
+                                          Math.min(rect.width - this.dragNode.radius, x));
+                this.dragNode.y = Math.max(this.dragNode.radius, 
+                                          Math.min(rect.height - this.dragNode.radius, y));
+            }
+
+            onMouseUp() {
+                this.isDragging = false;
+                this.dragNode = null;
+            }
+            
+            async addConnection(person1, person2) {
+                person1 = person1.trim().toLowerCase();
+                person2 = person2.trim().toLowerCase();
+
+                if (!person1 || !person2) {
+                    this.showError('Por favor ingresa ambos nombres');
+                    return false;
+                }
+
+                if (person1 === person2) {
+                    this.showError('Una persona no puede conectarse consigo misma');
+                    return false;
+                }
+
+                // Verificar si la conexión ya existe en Firestore
+                const connectionsRef = db.collection('connections');
+                const existingConnection1 = await connectionsRef.where('person1', '==', person1).where('person2', '==', person2).get();
+                const existingConnection2 = await connectionsRef.where('person1', '==', person2).where('person2', '==', person1).get();
+
+                if (!existingConnection1.empty || !existingConnection2.empty) {
+                    this.showError('Esta conexión ya existe');
+                    return false;
+                }
+                
+                // Agregar conexión a Firestore
+                try {
+                    await db.collection('connections').add({
+                        person1: person1,
+                        person2: person2,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    this.showSuccess(`Conexión creada: ${person1} ↔ ${person2}`);
+                    return true;
+                } catch (e) {
+                    this.showError('Error al crear la conexión: ' + e.message);
+                    return false;
+                }
+            }
+
+            async removeConnection(id) {
+                try {
+                    await db.collection('connections').doc(id).delete();
+                    this.showSuccess('Conexión eliminada correctamente');
+                } catch (e) {
+                    this.showError('Error al eliminar la conexión: ' + e.message);
+                }
+            }
+
+            async clearNetwork() {
+                if (!this.isAdminMode) return;
+                
+                if (confirm('¿Estás seguro de que quieres eliminar toda la red?')) {
+                    try {
+                        const batch = db.batch();
+                        const connections = await db.collection('connections').get();
+                        connections.docs.forEach(doc => {
+                            batch.delete(doc.ref);
+                        });
+                        await batch.commit();
+                        this.showSuccess('Red eliminada correctamente');
+                    } catch (e) {
+                        this.showError('Error al limpiar la red: ' + e.message);
+                    }
+                }
+            }
+
+            setupRealtimeListener() {
+                db.collection('connections').onSnapshot(snapshot => {
+                    this.edges = [];
+                    this.nodes.clear();
+                    
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        const id = doc.id;
+                        this.edges.push({ id: id, from: data.person1, to: data.person2 });
+                        
+                        // Crear o actualizar nodos
+                        this.getOrCreateNode(data.person1);
+                        this.getOrCreateNode(data.person2);
+                        
+                        // Incrementar conexiones
+                        this.nodes.get(data.person1).connections++;
+                        this.nodes.get(data.person2).connections++;
+                    });
+                    
+                    this.updateNodeSizes();
+                    this.updateStats();
+                    this.updateConnectionsList();
+                }, err => {
+                    console.error('Error fetching data:', err);
+                    this.showError('Error al cargar los datos en tiempo real');
+                });
+            }
+
+            getOrCreateNode(name) {
+                if (!this.nodes.has(name)) {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const node = {
+                        name: name,
+                        x: Math.random() * (rect.width - 100) + 50,
+                        y: Math.random() * (rect.height - 100) + 50,
+                        radius: 20,
+                        connections: 0,
+                        color: this.getRandomColor(),
+                        vx: 0,
+                        vy: 0
+                    };
+                    this.nodes.set(name, node);
+                }
+            }
+
+            updateNodeSizes() {
+                for (let [name, node] of this.nodes) {
+                    node.radius = 20 + (node.connections * 8);
+                }
+            }
+
+            getRandomColor() {
+                const colors = [
+                    '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', 
+                    '#feca57', '#ff9ff3', '#54a0ff', '#5f27cd',
+                    '#00d2d3', '#ff9f43', '#a55eea', '#26de81'
+                ];
+                return colors[Math.floor(Math.random() * colors.length)];
+            }
+
+            draw() {
+                const rect = this.canvas.getBoundingClientRect();
+                this.ctx.clearRect(0, 0, rect.width, rect.height);
+
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                this.ctx.lineWidth = 2;
+                
+                for (let edge of this.edges) {
+                    const nodeFrom = this.nodes.get(edge.from);
+                    const nodeTo = this.nodes.get(edge.to);
+                    
+                    if (nodeFrom && nodeTo) {
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(nodeFrom.x, nodeFrom.y);
+                        this.ctx.lineTo(nodeTo.x, nodeTo.y);
+                        this.ctx.stroke();
+                    }
+                }
+
+                for (let [name, node] of this.nodes) {
+                    this.ctx.beginPath();
+                    this.ctx.arc(node.x + 2, node.y + 2, node.radius, 0, 2 * Math.PI);
+                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                    this.ctx.fill();
+
+                    this.ctx.beginPath();
+                    this.ctx.arc(node.x, node.y, node.radius, 0, 2 * Math.PI);
+                    this.ctx.fillStyle = node.color;
+                    this.ctx.fill();
+                    
+                    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.stroke();
+
+                    this.ctx.fillStyle = 'white';
+                    this.ctx.font = 'bold 12px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.textBaseline = 'middle';
+                    this.ctx.fillText(name, node.x, node.y);
+
+                    if (node.connections > 0) {
+                        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                        this.ctx.font = 'bold 10px Arial';
+                        this.ctx.fillText(node.connections.toString(), node.x, node.y + node.radius + 15);
+                    }
+                }
+            }
+
+            animate() {
+                this.draw();
+                this.animationId = requestAnimationFrame(() => this.animate());
+            }
+
+            updateStats() {
+                document.getElementById('totalPersons').textContent = this.nodes.size;
+                document.getElementById('totalConnections').textContent = this.edges.length;
+
+                let mostConnected = '-';
+                let maxConnections = 0;
+                for (let [name, node] of this.nodes) {
+                    if (node.connections > maxConnections) {
+                        maxConnections = node.connections;
+                        mostConnected = name;
+                    }
+                }
+                document.getElementById('mostConnected').textContent = mostConnected;
+            }
+
+            updateConnectionsList() {
+                const list = document.getElementById('connectionsList');
+                list.innerHTML = '';
+
+                if (this.edges.length === 0) {
+                    list.innerHTML = '<p style="color: rgba(255,255,255,0.6); text-align: center;">No hay conexiones</p>';
+                    return;
+                }
+
+                this.edges.forEach((edge) => {
+                    const item = document.createElement('div');
+                    item.className = 'connection-item';
+                    
+                    if (this.isAdminMode) {
+                        item.innerHTML = `
+                            <span>${edge.from} ↔ ${edge.to}</span>
+                            <button class="delete-btn" onclick="networkManager.removeConnection('${edge.id}')">
+                                Eliminar
+                            </button>
+                        `;
+                    } else {
+                        item.innerHTML = `<span>${edge.from} ↔ ${edge.to}</span>`;
+                    }
+                    list.appendChild(item);
+                });
+            }
+
+            showError(message) {
+                const errorDiv = document.getElementById('errorMessage');
+                errorDiv.textContent = message;
+                errorDiv.style.display = 'block';
+                setTimeout(() => {
+                    errorDiv.style.display = 'none';
+                }, 3000);
+            }
+
+            showSuccess(message) {
+                const successDiv = document.getElementById('successMessage');
+                successDiv.textContent = message;
+                successDiv.style.display = 'block';
+                setTimeout(() => {
+                    successDiv.style.display = 'none';
+                }, 3000);
+            }
+
+            showLoginError(message) {
+                const errorDiv = document.getElementById('loginError');
+                errorDiv.textContent = message;
+                errorDiv.style.display = 'block';
+                setTimeout(() => {
+                    errorDiv.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        const ADMIN_PASSWORD = 'admin123';
+        let networkManager;
+        let isAdminMode = false;
+
+        function login() {
+            const password = document.getElementById('adminPassword').value;
+            
+            if (password === ADMIN_PASSWORD) {
+                enterAdminMode();
+            } else {
+                if (networkManager) {
+                    networkManager.showLoginError('Contraseña incorrecta');
+                } else {
+                    const tempDiv = document.getElementById('loginError');
+                    tempDiv.textContent = 'Contraseña incorrecta';
+                    tempDiv.style.display = 'block';
+                    setTimeout(() => {
+                        tempDiv.style.display = 'none';
+                    }, 3000);
+                }
+            }
+            document.getElementById('adminPassword').value = '';
+        }
+
+        function enterAdminMode() {
+            isAdminMode = true;
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainScreen').classList.remove('hidden');
+            document.getElementById('mainScreen').classList.add('fade-in');
+            
+            document.getElementById('adminPanel').classList.remove('hidden');
+            document.getElementById('viewerNotice').classList.add('hidden');
+            document.getElementById('headerSubtitle').textContent = 'Administra tu red de conexiones';
+            
+            if (!networkManager) {
+                networkManager = new NetworkManager();
+            }
+            networkManager.enableAdminMode();
+        }
+
+        function enterViewMode() {
+            isAdminMode = false;
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainScreen').classList.remove('hidden');
+            document.getElementById('mainScreen').classList.add('fade-in');
+            
+            document.getElementById('adminPanel').classList.add('hidden');
+            document.getElementById('viewerNotice').classList.remove('hidden');
+            document.getElementById('headerSubtitle').textContent = 'Explora la red de personas y sus conexiones';
+            
+            if (!networkManager) {
+                networkManager = new NetworkManager();
+            }
+            networkManager.enableViewMode();
+        }
+
+        function logout() {
+            isAdminMode = false;
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('mainScreen').classList.add('hidden');
+            document.getElementById('adminPassword').focus();
+        }
+
+        async function addConnection() {
+            if (!isAdminMode || !networkManager) return;
+            
+            const person1 = document.getElementById('person1').value;
+            const person2 = document.getElementById('person2').value;
+            
+            const success = await networkManager.addConnection(person1, person2);
+            if (success) {
+                document.getElementById('person1').value = '';
+                document.getElementById('person2').value = '';
+            }
+        }
+
+        async function clearNetwork() {
+            if (!isAdminMode || !networkManager) return;
+            await networkManager.clearNetwork();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('adminPassword').focus();
+            
+            document.getElementById('adminPassword').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    login();
+                }
+            });
+
+            document.getElementById('person1').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && isAdminMode) {
+                    document.getElementById('person2').focus();
+                }
+            });
+
+            document.getElementById('person2').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && isAdminMode) {
+                    addConnection();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
