@@ -132,20 +132,11 @@
             100% { opacity: 1; }
         }
 
-        .controls-row {
+        .input-group {
             display: flex;
             gap: 10px;
             margin-bottom: 20px;
             align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .input-group {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex: 1;
-            min-width: 300px;
         }
 
         .input-group input {
@@ -162,18 +153,9 @@
             color: #666;
         }
 
-        .layout-controls {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
         .btn-clear {
             background: linear-gradient(45deg, #ff4757, #c44569);
-        }
-
-        .btn-organize {
-            background: linear-gradient(45deg, #3742fa, #2f3542);
+            margin-left: 10px;
         }
 
         .btn-logout {
@@ -317,17 +299,8 @@
         }
 
         @media (max-width: 768px) {
-            .controls-row {
-                flex-direction: column;
-            }
-            
             .input-group {
-                min-width: 100%;
-            }
-            
-            .layout-controls {
-                width: 100%;
-                justify-content: center;
+                flex-direction: column;
             }
             
             .admin-header {
@@ -372,18 +345,11 @@
                 </div>
                 <div class="error-message" id="errorMessage"></div>
                 <div class="success-message" id="successMessage"></div>
-                
-                <div class="controls-row">
-                    <div class="input-group">
-                        <input type="text" id="person1" placeholder="Primera persona">
-                        <input type="text" id="person2" placeholder="Segunda persona">
-                        <button class="btn" onclick="addConnection()">Conectar</button>
-                    </div>
-                    
-                    <div class="layout-controls">
-                        <button class="btn btn-organize" onclick="organizeNetwork()">Reorganizar</button>
-                        <button class="btn btn-clear" onclick="clearNetwork()">Limpiar Todo</button>
-                    </div>
+                <div class="input-group">
+                    <input type="text" id="person1" placeholder="Primera persona">
+                    <input type="text" id="person2" placeholder="Segunda persona">
+                    <button class="btn" onclick="addConnection()">Conectar</button>
+                    <button class="btn btn-clear" onclick="clearNetwork()">Limpiar Todo</button>
                 </div>
             </div>
 
@@ -410,10 +376,6 @@
                     <div class="stat-number" id="mostConnected">-</div>
                     <div class="stat-label">Más Conectado</div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-number" id="networkDensity">0%</div>
-                    <div class="stat-label">Densidad</div>
-                </div>
             </div>
 
             <div class="connections-list">
@@ -427,6 +389,8 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
     <script>
+        // *** PASO 1: REEMPLAZA ESTO CON LA CONFIGURACIÓN DE TU PROYECTO FIREBASE ***
+
         const firebaseConfig = {
           apiKey: "AIzaSyDkzMk-Kd-UHH0TAkNRK8y-2V5eUI7yJ_U",
           authDomain: "margarito-2-a7389.firebaseapp.com",
@@ -451,7 +415,6 @@
                 this.mousePos = { x: 0, y: 0 };
                 this.animationId = null;
                 this.isAdminMode = false;
-                this.isAnimating = false;
                 
                 this.setupCanvas();
                 this.animate();
@@ -543,150 +506,6 @@
                 this.isDragging = false;
                 this.dragNode = null;
             }
-
-            // Algoritmo de organización automática usando física de resortes
-            organizeNetwork() {
-                if (this.nodes.size === 0) return;
-
-                this.isAnimating = true;
-                const rect = this.canvas.getBoundingClientRect();
-                const centerX = rect.width / 2;
-                const centerY = rect.height / 2;
-
-                // Configuración de la simulación física
-                const config = {
-                    repulsion: 3000,
-                    attraction: 0.1,
-                    damping: 0.9,
-                    minDistance: 100,
-                    iterations: 100
-                };
-
-                let iteration = 0;
-                const animate = () => {
-                    if (iteration >= config.iterations) {
-                        this.isAnimating = false;
-                        return;
-                    }
-
-                    // Calcular fuerzas de repulsión entre todos los nodos
-                    for (let [name1, node1] of this.nodes) {
-                        node1.fx = 0;
-                        node1.fy = 0;
-
-                        for (let [name2, node2] of this.nodes) {
-                            if (name1 === name2) continue;
-
-                            const dx = node1.x - node2.x;
-                            const dy = node1.y - node2.y;
-                            const distance = Math.sqrt(dx * dx + dy * dy);
-
-                            if (distance > 0) {
-                                const force = config.repulsion / (distance * distance);
-                                node1.fx += (dx / distance) * force;
-                                node1.fy += (dy / distance) * force;
-                            }
-                        }
-                    }
-
-                    // Calcular fuerzas de atracción para nodos conectados
-                    for (let edge of this.edges) {
-                        const node1 = this.nodes.get(edge.from);
-                        const node2 = this.nodes.get(edge.to);
-
-                        if (node1 && node2) {
-                            const dx = node2.x - node1.x;
-                            const dy = node2.y - node1.y;
-                            const distance = Math.sqrt(dx * dx + dy * dy);
-
-                            if (distance > config.minDistance) {
-                                const force = config.attraction * (distance - config.minDistance);
-                                const fx = (dx / distance) * force;
-                                const fy = (dy / distance) * force;
-
-                                node1.fx += fx;
-                                node1.fy += fy;
-                                node2.fx -= fx;
-                                node2.fy -= fy;
-                            }
-                        }
-                    }
-
-                    // Aplicar fuerzas y actualizar posiciones
-                    for (let [name, node] of this.nodes) {
-                        // Agregar velocidad si no existe
-                        if (!node.vx) node.vx = 0;
-                        if (!node.vy) node.vy = 0;
-
-                        node.vx = (node.vx + node.fx) * config.damping;
-                        node.vy = (node.vy + node.fy) * config.damping;
-
-                        node.x += node.vx;
-                        node.y += node.vy;
-
-                        // Mantener nodos dentro del canvas
-                        const margin = node.radius + 10;
-                        node.x = Math.max(margin, Math.min(rect.width - margin, node.x));
-                        node.y = Math.max(margin, Math.min(rect.height - margin, node.y));
-                    }
-
-                    iteration++;
-                    setTimeout(animate, 50);
-                };
-
-                animate();
-            }
-
-            // Posicionamiento inicial más ordenado
-            positionNodeInitially(name) {
-                const rect = this.canvas.getBoundingClientRect();
-                const existing = Array.from(this.nodes.values());
-                
-                if (existing.length === 0) {
-                    // Primer nodo en el centro
-                    return {
-                        x: rect.width / 2,
-                        y: rect.height / 2
-                    };
-                }
-
-                // Buscar una posición que minimice las colisiones
-                let bestX = rect.width / 2;
-                let bestY = rect.height / 2;
-                let maxDistance = 0;
-
-                const attempts = 20;
-                const margin = 80;
-
-                for (let i = 0; i < attempts; i++) {
-                    const angle = (i / attempts) * 2 * Math.PI;
-                    const radius = 100 + (existing.length * 30);
-                    
-                    let x = rect.width / 2 + Math.cos(angle) * radius;
-                    let y = rect.height / 2 + Math.sin(angle) * radius;
-
-                    // Asegurar que esté dentro del canvas
-                    x = Math.max(margin, Math.min(rect.width - margin, x));
-                    y = Math.max(margin, Math.min(rect.height - margin, y));
-
-                    // Calcular la distancia mínima a otros nodos
-                    let minDistance = Infinity;
-                    for (let node of existing) {
-                        const dx = x - node.x;
-                        const dy = y - node.y;
-                        const distance = Math.sqrt(dx * dx + dy * dy);
-                        minDistance = Math.min(minDistance, distance);
-                    }
-
-                    if (minDistance > maxDistance) {
-                        maxDistance = minDistance;
-                        bestX = x;
-                        bestY = y;
-                    }
-                }
-
-                return { x: bestX, y: bestY };
-            }
             
             async addConnection(person1, person2) {
                 person1 = person1.trim().toLowerCase();
@@ -702,6 +521,7 @@
                     return false;
                 }
 
+                // Verificar si la conexión ya existe en Firestore
                 const connectionsRef = db.collection('connections');
                 const existingConnection1 = await connectionsRef.where('person1', '==', person1).where('person2', '==', person2).get();
                 const existingConnection2 = await connectionsRef.where('person1', '==', person2).where('person2', '==', person1).get();
@@ -711,6 +531,7 @@
                     return false;
                 }
                 
+                // Agregar conexión a Firestore
                 try {
                     await db.collection('connections').add({
                         person1: person1,
@@ -754,7 +575,6 @@
 
             setupRealtimeListener() {
                 db.collection('connections').onSnapshot(snapshot => {
-                    const oldNodesCount = this.nodes.size;
                     this.edges = [];
                     this.nodes.clear();
                     
@@ -763,9 +583,11 @@
                         const id = doc.id;
                         this.edges.push({ id: id, from: data.person1, to: data.person2 });
                         
+                        // Crear o actualizar nodos
                         this.getOrCreateNode(data.person1);
                         this.getOrCreateNode(data.person2);
                         
+                        // Incrementar conexiones
                         this.nodes.get(data.person1).connections++;
                         this.nodes.get(data.person2).connections++;
                     });
@@ -773,11 +595,6 @@
                     this.updateNodeSizes();
                     this.updateStats();
                     this.updateConnectionsList();
-
-                    // Auto-organizar si es la primera vez o hay muchos nodos nuevos
-                    if (oldNodesCount === 0 && this.nodes.size > 2) {
-                        setTimeout(() => this.organizeNetwork(), 500);
-                    }
                 }, err => {
                     console.error('Error fetching data:', err);
                     this.showError('Error al cargar los datos en tiempo real');
@@ -786,18 +603,16 @@
 
             getOrCreateNode(name) {
                 if (!this.nodes.has(name)) {
-                    const position = this.positionNodeInitially(name);
+                    const rect = this.canvas.getBoundingClientRect();
                     const node = {
                         name: name,
-                        x: position.x,
-                        y: position.y,
-                        radius: 25,
+                        x: Math.random() * (rect.width - 100) + 50,
+                        y: Math.random() * (rect.height - 100) + 50,
+                        radius: 20,
                         connections: 0,
                         color: this.getRandomColor(),
                         vx: 0,
-                        vy: 0,
-                        fx: 0,
-                        fy: 0
+                        vy: 0
                     };
                     this.nodes.set(name, node);
                 }
@@ -805,7 +620,7 @@
 
             updateNodeSizes() {
                 for (let [name, node] of this.nodes) {
-                    node.radius = Math.max(25, 20 + (node.connections * 6));
+                    node.radius = 20 + (node.connections * 8);
                 }
             }
 
@@ -822,8 +637,7 @@
                 const rect = this.canvas.getBoundingClientRect();
                 this.ctx.clearRect(0, 0, rect.width, rect.height);
 
-                // Dibujar conexiones con mejor estilo
-                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
                 this.ctx.lineWidth = 2;
                 
                 for (let edge of this.edges) {
@@ -831,20 +645,219 @@
                     const nodeTo = this.nodes.get(edge.to);
                     
                     if (nodeFrom && nodeTo) {
-                        // Calcular puntos de conexión en el borde de los círculos
-                        const dx = nodeTo.x - nodeFrom.x;
-                        const dy = nodeTo.y - nodeFrom.y;
-                        const distance = Math.sqrt(dx * dx + dy * dy);
-                        
-                        if (distance > 0) {
-                            const fromX = nodeFrom.x + (dx / distance) * nodeFrom.radius;
-                            const fromY = nodeFrom.y + (dy / distance) * nodeFrom.radius;
-                            const toX = nodeTo.x - (dx / distance) * nodeTo.radius;
-                            const toY = nodeTo.y - (dy / distance) * nodeTo.radius;
-
-                            this.ctx.beginPath();
-                            this.ctx.moveTo(fromX, fromY);
-                            this.ctx.lineTo(toX, toY);
-                            this.ctx.stroke();
-                        }
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(nodeFrom.x, nodeFrom.y);
+                        this.ctx.lineTo(nodeTo.x, nodeTo.y);
+                        this.ctx.stroke();
                     }
+                }
+
+                for (let [name, node] of this.nodes) {
+                    this.ctx.beginPath();
+                    this.ctx.arc(node.x + 2, node.y + 2, node.radius, 0, 2 * Math.PI);
+                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                    this.ctx.fill();
+
+                    this.ctx.beginPath();
+                    this.ctx.arc(node.x, node.y, node.radius, 0, 2 * Math.PI);
+                    this.ctx.fillStyle = node.color;
+                    this.ctx.fill();
+                    
+                    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.stroke();
+
+                    this.ctx.fillStyle = 'white';
+                    this.ctx.font = 'bold 12px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.textBaseline = 'middle';
+                    this.ctx.fillText(name, node.x, node.y);
+
+                    if (node.connections > 0) {
+                        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                        this.ctx.font = 'bold 10px Arial';
+                        this.ctx.fillText(node.connections.toString(), node.x, node.y + node.radius + 15);
+                    }
+                }
+            }
+
+            animate() {
+                this.draw();
+                this.animationId = requestAnimationFrame(() => this.animate());
+            }
+
+            updateStats() {
+                document.getElementById('totalPersons').textContent = this.nodes.size;
+                document.getElementById('totalConnections').textContent = this.edges.length;
+
+                let mostConnected = '-';
+                let maxConnections = 0;
+                for (let [name, node] of this.nodes) {
+                    if (node.connections > maxConnections) {
+                        maxConnections = node.connections;
+                        mostConnected = name;
+                    }
+                }
+                document.getElementById('mostConnected').textContent = mostConnected;
+            }
+
+            updateConnectionsList() {
+                const list = document.getElementById('connectionsList');
+                list.innerHTML = '';
+
+                if (this.edges.length === 0) {
+                    list.innerHTML = '<p style="color: rgba(255,255,255,0.6); text-align: center;">No hay conexiones</p>';
+                    return;
+                }
+
+                this.edges.forEach((edge) => {
+                    const item = document.createElement('div');
+                    item.className = 'connection-item';
+                    
+                    if (this.isAdminMode) {
+                        item.innerHTML = `
+                            <span>${edge.from} ↔ ${edge.to}</span>
+                            <button class="delete-btn" onclick="networkManager.removeConnection('${edge.id}')">
+                                Eliminar
+                            </button>
+                        `;
+                    } else {
+                        item.innerHTML = `<span>${edge.from} ↔ ${edge.to}</span>`;
+                    }
+                    list.appendChild(item);
+                });
+            }
+
+            showError(message) {
+                const errorDiv = document.getElementById('errorMessage');
+                errorDiv.textContent = message;
+                errorDiv.style.display = 'block';
+                setTimeout(() => {
+                    errorDiv.style.display = 'none';
+                }, 3000);
+            }
+
+            showSuccess(message) {
+                const successDiv = document.getElementById('successMessage');
+                successDiv.textContent = message;
+                successDiv.style.display = 'block';
+                setTimeout(() => {
+                    successDiv.style.display = 'none';
+                }, 3000);
+            }
+
+            showLoginError(message) {
+                const errorDiv = document.getElementById('loginError');
+                errorDiv.textContent = message;
+                errorDiv.style.display = 'block';
+                setTimeout(() => {
+                    errorDiv.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        const ADMIN_PASSWORD = 'admin123';
+        let networkManager;
+        let isAdminMode = false;
+
+        function login() {
+            const password = document.getElementById('adminPassword').value;
+            
+            if (password === ADMIN_PASSWORD) {
+                enterAdminMode();
+            } else {
+                if (networkManager) {
+                    networkManager.showLoginError('Contraseña incorrecta');
+                } else {
+                    const tempDiv = document.getElementById('loginError');
+                    tempDiv.textContent = 'Contraseña incorrecta';
+                    tempDiv.style.display = 'block';
+                    setTimeout(() => {
+                        tempDiv.style.display = 'none';
+                    }, 3000);
+                }
+            }
+            document.getElementById('adminPassword').value = '';
+        }
+
+        function enterAdminMode() {
+            isAdminMode = true;
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainScreen').classList.remove('hidden');
+            document.getElementById('mainScreen').classList.add('fade-in');
+            
+            document.getElementById('adminPanel').classList.remove('hidden');
+            document.getElementById('viewerNotice').classList.add('hidden');
+            document.getElementById('headerSubtitle').textContent = 'Administra tu red de conexiones';
+            
+            if (!networkManager) {
+                networkManager = new NetworkManager();
+            }
+            networkManager.enableAdminMode();
+        }
+
+        function enterViewMode() {
+            isAdminMode = false;
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainScreen').classList.remove('hidden');
+            document.getElementById('mainScreen').classList.add('fade-in');
+            
+            document.getElementById('adminPanel').classList.add('hidden');
+            document.getElementById('viewerNotice').classList.remove('hidden');
+            document.getElementById('headerSubtitle').textContent = 'Explora la red de personas y sus conexiones';
+            
+            if (!networkManager) {
+                networkManager = new NetworkManager();
+            }
+            networkManager.enableViewMode();
+        }
+
+        function logout() {
+            isAdminMode = false;
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('mainScreen').classList.add('hidden');
+            document.getElementById('adminPassword').focus();
+        }
+
+        async function addConnection() {
+            if (!isAdminMode || !networkManager) return;
+            
+            const person1 = document.getElementById('person1').value;
+            const person2 = document.getElementById('person2').value;
+            
+            const success = await networkManager.addConnection(person1, person2);
+            if (success) {
+                document.getElementById('person1').value = '';
+                document.getElementById('person2').value = '';
+            }
+        }
+
+        async function clearNetwork() {
+            if (!isAdminMode || !networkManager) return;
+            await networkManager.clearNetwork();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('adminPassword').focus();
+            
+            document.getElementById('adminPassword').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    login();
+                }
+            });
+
+            document.getElementById('person1').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && isAdminMode) {
+                    document.getElementById('person2').focus();
+                }
+            });
+
+            document.getElementById('person2').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && isAdminMode) {
+                    addConnection();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
