@@ -16,7 +16,6 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             color: white;
-            overflow-x: hidden;
         }
 
         .container {
@@ -133,11 +132,20 @@
             100% { opacity: 1; }
         }
 
-        .input-group {
+        .controls-row {
             display: flex;
             gap: 10px;
             margin-bottom: 20px;
             align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex: 1;
+            min-width: 300px;
         }
 
         .input-group input {
@@ -154,9 +162,18 @@
             color: #666;
         }
 
+        .layout-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
         .btn-clear {
             background: linear-gradient(45deg, #ff4757, #c44569);
-            margin-left: 10px;
+        }
+
+        .btn-organize {
+            background: linear-gradient(45deg, #3742fa, #2f3542);
         }
 
         .btn-logout {
@@ -175,105 +192,23 @@
             overflow: hidden;
         }
 
-        .network-controls {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            gap: 15px;
-        }
-
-        .zoom-controls {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .zoom-btn {
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 18px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-        }
-
-        .zoom-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: scale(1.1);
-        }
-
-        .zoom-info {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 14px;
-            min-width: 80px;
-            text-align: center;
-        }
-
-        .fullscreen-btn {
-            background: linear-gradient(45deg, #a55eea, #3742fa);
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 14px;
-        }
-
         #networkCanvas {
             width: 100%;
             height: 500px;
             background: rgba(0, 0, 0, 0.1);
             border-radius: 10px;
-            touch-action: none;
+        }
+
+        .viewer-mode #networkCanvas {
+            cursor: default;
+        }
+
+        .admin-mode #networkCanvas {
             cursor: grab;
         }
 
-        #networkCanvas:active {
+        .admin-mode #networkCanvas:active {
             cursor: grabbing;
-        }
-
-        .fullscreen-mode {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 1000;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 0;
-            padding: 0;
-        }
-
-        .fullscreen-mode #networkCanvas {
-            width: 100vw;
-            height: 100vh;
-            border-radius: 0;
-        }
-
-        .fullscreen-controls {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            display: flex;
-            gap: 10px;
-            z-index: 1001;
-        }
-
-        .fullscreen-zoom-controls {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            z-index: 1001;
         }
 
         .stats {
@@ -368,16 +303,6 @@
             text-align: center;
         }
 
-        .network-instructions {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 10px;
-            margin-bottom: 15px;
-            font-size: 14px;
-            text-align: center;
-            color: rgba(255, 255, 255, 0.8);
-        }
-
         .hidden {
             display: none !important;
         }
@@ -392,32 +317,22 @@
         }
 
         @media (max-width: 768px) {
-            .input-group {
+            .controls-row {
                 flex-direction: column;
+            }
+            
+            .input-group {
+                min-width: 100%;
+            }
+            
+            .layout-controls {
+                width: 100%;
+                justify-content: center;
             }
             
             .admin-header {
                 flex-direction: column;
                 gap: 15px;
-            }
-
-            .network-controls {
-                flex-direction: column;
-                gap: 10px;
-            }
-
-            .zoom-controls {
-                order: 2;
-            }
-
-            .fullscreen-controls {
-                top: 10px;
-                right: 10px;
-            }
-
-            .fullscreen-zoom-controls {
-                top: 10px;
-                left: 10px;
             }
         }
     </style>
@@ -457,11 +372,18 @@
                 </div>
                 <div class="error-message" id="errorMessage"></div>
                 <div class="success-message" id="successMessage"></div>
-                <div class="input-group">
-                    <input type="text" id="person1" placeholder="Primera persona">
-                    <input type="text" id="person2" placeholder="Segunda persona">
-                    <button class="btn" onclick="addConnection()">Conectar</button>
-                    <button class="btn btn-clear" onclick="clearNetwork()">Limpiar Todo</button>
+                
+                <div class="controls-row">
+                    <div class="input-group">
+                        <input type="text" id="person1" placeholder="Primera persona">
+                        <input type="text" id="person2" placeholder="Segunda persona">
+                        <button class="btn" onclick="addConnection()">Conectar</button>
+                    </div>
+                    
+                    <div class="layout-controls">
+                        <button class="btn btn-organize" onclick="organizeNetwork()">Reorganizar</button>
+                        <button class="btn btn-clear" onclick="clearNetwork()">Limpiar Todo</button>
+                    </div>
                 </div>
             </div>
 
@@ -471,31 +393,8 @@
                 <button class="btn" onclick="logout()" style="margin-left: 15px; padding: 8px 15px; font-size: 14px;">Cambiar Modo</button>
             </div>
 
-            <div class="network-container" id="networkContainer">
-                <div class="network-instructions">
-                    📱 Arrastra para mover nodos • 🔍 Rueda del mouse o pellizca para zoom • 🖱️ Clic derecho para centrar
-                </div>
-                <div class="network-controls">
-                    <div class="zoom-controls">
-                        <button class="zoom-btn" onclick="networkManager.zoomOut()" title="Alejar">−</button>
-                        <div class="zoom-info" id="zoomInfo">100%</div>
-                        <button class="zoom-btn" onclick="networkManager.zoomIn()" title="Acercar">+</button>
-                        <button class="zoom-btn" onclick="networkManager.resetZoom()" title="Restablecer zoom">⌂</button>
-                    </div>
-                    <button class="btn fullscreen-btn" onclick="toggleFullscreen()">🔍 Pantalla Completa</button>
-                </div>
+            <div class="network-container">
                 <canvas id="networkCanvas"></canvas>
-                
-                <!-- Controles para modo pantalla completa -->
-                <div class="fullscreen-controls hidden" id="fullscreenControls">
-                    <button class="btn btn-logout" onclick="toggleFullscreen()">✕ Salir</button>
-                </div>
-                <div class="fullscreen-zoom-controls hidden" id="fullscreenZoomControls">
-                    <button class="zoom-btn" onclick="networkManager.zoomOut()">−</button>
-                    <div class="zoom-info" id="fullscreenZoomInfo">100%</div>
-                    <button class="zoom-btn" onclick="networkManager.zoomIn()">+</button>
-                    <button class="zoom-btn" onclick="networkManager.resetZoom()">⌂</button>
-                </div>
             </div>
 
             <div class="stats">
@@ -510,6 +409,10 @@
                 <div class="stat-card">
                     <div class="stat-number" id="mostConnected">-</div>
                     <div class="stat-label">Más Conectado</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="networkDensity">0%</div>
+                    <div class="stat-label">Densidad</div>
                 </div>
             </div>
 
@@ -545,296 +448,246 @@
                 this.ctx = this.canvas.getContext('2d');
                 this.isDragging = false;
                 this.dragNode = null;
+                this.mousePos = { x: 0, y: 0 };
+                this.animationId = null;
                 this.isAdminMode = false;
-                this.isFullscreen = false;
-                
-                // Zoom y pan
-                this.zoom = 1;
-                this.panX = 0;
-                this.panY = 0;
-                this.minZoom = 0.1;
-                this.maxZoom = 5;
-                
-                // Para gesture de pellizco
-                this.lastTouchDistance = 0;
-                this.isPanning = false;
-                this.lastPanPoint = { x: 0, y: 0 };
+                this.isAnimating = false;
                 
                 this.setupCanvas();
-                this.setupEventListeners();
                 this.animate();
                 this.setupRealtimeListener();
             }
 
             setupCanvas() {
-                this.resizeCanvas();
-            }
-
-            resizeCanvas() {
                 const rect = this.canvas.getBoundingClientRect();
-                const dpr = window.devicePixelRatio || 1;
-                
-                this.canvas.width = rect.width * dpr;
-                this.canvas.height = rect.height * dpr;
-                this.ctx.scale(dpr, dpr);
+                this.canvas.width = rect.width * 2;
+                this.canvas.height = rect.height * 2;
+                this.ctx.scale(2, 2);
                 this.canvas.style.width = rect.width + 'px';
                 this.canvas.style.height = rect.height + 'px';
-                
-                this.canvasWidth = rect.width;
-                this.canvasHeight = rect.height;
             }
 
             enableAdminMode() {
                 this.isAdminMode = true;
+                document.body.classList.add('admin-mode');
+                document.body.classList.remove('viewer-mode');
+                this.setupEventListeners();
                 this.updateConnectionsList();
             }
 
             enableViewMode() {
                 this.isAdminMode = false;
+                document.body.classList.add('viewer-mode');
+                document.body.classList.remove('admin-mode');
+                this.removeEventListeners();
                 this.updateConnectionsList();
             }
 
             setupEventListeners() {
-                // Mouse events
-                this.canvas.addEventListener('mousedown', this.onMouseDown.bind(this));
-                this.canvas.addEventListener('mousemove', this.onMouseMove.bind(this));
-                this.canvas.addEventListener('mouseup', this.onMouseUp.bind(this));
-                this.canvas.addEventListener('mouseleave', this.onMouseUp.bind(this));
-                this.canvas.addEventListener('wheel', this.onWheel.bind(this));
-                this.canvas.addEventListener('contextmenu', this.onRightClick.bind(this));
+                this.onMouseDown = this.onMouseDown.bind(this);
+                this.onMouseMove = this.onMouseMove.bind(this);
+                this.onMouseUp = this.onMouseUp.bind(this);
 
-                // Touch events
-                this.canvas.addEventListener('touchstart', this.onTouchStart.bind(this));
-                this.canvas.addEventListener('touchmove', this.onTouchMove.bind(this));
-                this.canvas.addEventListener('touchend', this.onTouchEnd.bind(this));
+                this.canvas.addEventListener('mousedown', this.onMouseDown);
+                this.canvas.addEventListener('mousemove', this.onMouseMove);
+                this.canvas.addEventListener('mouseup', this.onMouseUp);
+                this.canvas.addEventListener('mouseleave', this.onMouseUp);
 
-                // Resize
                 window.addEventListener('resize', () => {
-                    setTimeout(() => this.resizeCanvas(), 100);
+                    setTimeout(() => this.setupCanvas(), 100);
                 });
-
-                // Fullscreen change
-                document.addEventListener('fullscreenchange', this.onFullscreenChange.bind(this));
             }
 
-            // Conversión de coordenadas con zoom y pan
-            screenToWorld(screenX, screenY) {
-                return {
-                    x: (screenX - this.panX) / this.zoom,
-                    y: (screenY - this.panY) / this.zoom
-                };
+            removeEventListeners() {
+                this.canvas.removeEventListener('mousedown', this.onMouseDown);
+                this.canvas.removeEventListener('mousemove', this.onMouseMove);
+                this.canvas.removeEventListener('mouseup', this.onMouseUp);
+                this.canvas.removeEventListener('mouseleave', this.onMouseUp);
             }
 
-            worldToScreen(worldX, worldY) {
-                return {
-                    x: worldX * this.zoom + this.panX,
-                    y: worldY * this.zoom + this.panY
-                };
-            }
-
-            // Eventos de mouse
             onMouseDown(e) {
+                if (!this.isAdminMode) return;
+
                 const rect = this.canvas.getBoundingClientRect();
-                const screenX = e.clientX - rect.left;
-                const screenY = e.clientY - rect.top;
-                const worldPos = this.screenToWorld(screenX, screenY);
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
                 
-                // Buscar nodo bajo el cursor
-                let nodeFound = false;
                 for (let [name, node] of this.nodes) {
-                    const dx = worldPos.x - node.x;
-                    const dy = worldPos.y - node.y;
+                    const dx = x - node.x;
+                    const dy = y - node.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
                     
                     if (distance < node.radius) {
                         this.isDragging = true;
                         this.dragNode = node;
-                        nodeFound = true;
+                        this.mousePos = { x, y };
                         break;
                     }
-                }
-                
-                // Si no se encontró nodo, iniciar pan
-                if (!nodeFound) {
-                    this.isPanning = true;
-                    this.lastPanPoint = { x: screenX, y: screenY };
                 }
             }
 
             onMouseMove(e) {
+                if (!this.isAdminMode || !this.isDragging || !this.dragNode) return;
+
                 const rect = this.canvas.getBoundingClientRect();
-                const screenX = e.clientX - rect.left;
-                const screenY = e.clientY - rect.top;
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
                 
-                if (this.isDragging && this.dragNode) {
-                    const worldPos = this.screenToWorld(screenX, screenY);
-                    this.dragNode.x = worldPos.x;
-                    this.dragNode.y = worldPos.y;
-                } else if (this.isPanning) {
-                    const dx = screenX - this.lastPanPoint.x;
-                    const dy = screenY - this.lastPanPoint.y;
-                    this.panX += dx;
-                    this.panY += dy;
-                    this.lastPanPoint = { x: screenX, y: screenY };
-                }
+                this.dragNode.x = Math.max(this.dragNode.radius, 
+                                          Math.min(rect.width - this.dragNode.radius, x));
+                this.dragNode.y = Math.max(this.dragNode.radius, 
+                                          Math.min(rect.height - this.dragNode.radius, y));
             }
 
             onMouseUp() {
                 this.isDragging = false;
                 this.dragNode = null;
-                this.isPanning = false;
             }
 
-            onWheel(e) {
-                e.preventDefault();
+            // Algoritmo de organización automática usando física de resortes
+            organizeNetwork() {
+                if (this.nodes.size === 0) return;
+
+                this.isAnimating = true;
                 const rect = this.canvas.getBoundingClientRect();
-                const mouseX = e.clientX - rect.left;
-                const mouseY = e.clientY - rect.top;
-                
-                const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-                this.zoomAt(mouseX, mouseY, zoomFactor);
-            }
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
 
-            onRightClick(e) {
-                e.preventDefault();
-                this.resetZoom();
-            }
+                // Configuración de la simulación física
+                const config = {
+                    repulsion: 3000,
+                    attraction: 0.1,
+                    damping: 0.9,
+                    minDistance: 100,
+                    iterations: 100
+                };
 
-            // Eventos táctiles
-            onTouchStart(e) {
-                e.preventDefault();
-                const rect = this.canvas.getBoundingClientRect();
-                
-                if (e.touches.length === 1) {
-                    // Un dedo: arrastrar nodo o pan
-                    const touch = e.touches[0];
-                    const screenX = touch.clientX - rect.left;
-                    const screenY = touch.clientY - rect.top;
-                    const worldPos = this.screenToWorld(screenX, screenY);
-                    
-                    let nodeFound = false;
-                    for (let [name, node] of this.nodes) {
-                        const dx = worldPos.x - node.x;
-                        const dy = worldPos.y - node.y;
-                        const distance = Math.sqrt(dx * dx + dy * dy);
-                        
-                        if (distance < node.radius) {
-                            this.isDragging = true;
-                            this.dragNode = node;
-                            nodeFound = true;
-                            break;
+                let iteration = 0;
+                const animate = () => {
+                    if (iteration >= config.iterations) {
+                        this.isAnimating = false;
+                        return;
+                    }
+
+                    // Calcular fuerzas de repulsión entre todos los nodos
+                    for (let [name1, node1] of this.nodes) {
+                        node1.fx = 0;
+                        node1.fy = 0;
+
+                        for (let [name2, node2] of this.nodes) {
+                            if (name1 === name2) continue;
+
+                            const dx = node1.x - node2.x;
+                            const dy = node1.y - node2.y;
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+
+                            if (distance > 0) {
+                                const force = config.repulsion / (distance * distance);
+                                node1.fx += (dx / distance) * force;
+                                node1.fy += (dy / distance) * force;
+                            }
                         }
                     }
-                    
-                    if (!nodeFound) {
-                        this.isPanning = true;
-                        this.lastPanPoint = { x: screenX, y: screenY };
+
+                    // Calcular fuerzas de atracción para nodos conectados
+                    for (let edge of this.edges) {
+                        const node1 = this.nodes.get(edge.from);
+                        const node2 = this.nodes.get(edge.to);
+
+                        if (node1 && node2) {
+                            const dx = node2.x - node1.x;
+                            const dy = node2.y - node1.y;
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+
+                            if (distance > config.minDistance) {
+                                const force = config.attraction * (distance - config.minDistance);
+                                const fx = (dx / distance) * force;
+                                const fy = (dy / distance) * force;
+
+                                node1.fx += fx;
+                                node1.fy += fy;
+                                node2.fx -= fx;
+                                node2.fy -= fy;
+                            }
+                        }
                     }
-                } else if (e.touches.length === 2) {
-                    // Dos dedos: zoom con pellizco
-                    const touch1 = e.touches[0];
-                    const touch2 = e.touches[1];
-                    const dx = touch1.clientX - touch2.clientX;
-                    const dy = touch1.clientY - touch2.clientY;
-                    this.lastTouchDistance = Math.sqrt(dx * dx + dy * dy);
-                }
+
+                    // Aplicar fuerzas y actualizar posiciones
+                    for (let [name, node] of this.nodes) {
+                        // Agregar velocidad si no existe
+                        if (!node.vx) node.vx = 0;
+                        if (!node.vy) node.vy = 0;
+
+                        node.vx = (node.vx + node.fx) * config.damping;
+                        node.vy = (node.vy + node.fy) * config.damping;
+
+                        node.x += node.vx;
+                        node.y += node.vy;
+
+                        // Mantener nodos dentro del canvas
+                        const margin = node.radius + 10;
+                        node.x = Math.max(margin, Math.min(rect.width - margin, node.x));
+                        node.y = Math.max(margin, Math.min(rect.height - margin, node.y));
+                    }
+
+                    iteration++;
+                    setTimeout(animate, 50);
+                };
+
+                animate();
             }
 
-            onTouchMove(e) {
-                e.preventDefault();
+            // Posicionamiento inicial más ordenado
+            positionNodeInitially(name) {
                 const rect = this.canvas.getBoundingClientRect();
+                const existing = Array.from(this.nodes.values());
                 
-                if (e.touches.length === 1) {
-                    const touch = e.touches[0];
-                    const screenX = touch.clientX - rect.left;
-                    const screenY = touch.clientY - rect.top;
+                if (existing.length === 0) {
+                    // Primer nodo en el centro
+                    return {
+                        x: rect.width / 2,
+                        y: rect.height / 2
+                    };
+                }
+
+                // Buscar una posición que minimice las colisiones
+                let bestX = rect.width / 2;
+                let bestY = rect.height / 2;
+                let maxDistance = 0;
+
+                const attempts = 20;
+                const margin = 80;
+
+                for (let i = 0; i < attempts; i++) {
+                    const angle = (i / attempts) * 2 * Math.PI;
+                    const radius = 100 + (existing.length * 30);
                     
-                    if (this.isDragging && this.dragNode) {
-                        const worldPos = this.screenToWorld(screenX, screenY);
-                        this.dragNode.x = worldPos.x;
-                        this.dragNode.y = worldPos.y;
-                    } else if (this.isPanning) {
-                        const dx = screenX - this.lastPanPoint.x;
-                        const dy = screenY - this.lastPanPoint.y;
-                        this.panX += dx;
-                        this.panY += dy;
-                        this.lastPanPoint = { x: screenX, y: screenY };
+                    let x = rect.width / 2 + Math.cos(angle) * radius;
+                    let y = rect.height / 2 + Math.sin(angle) * radius;
+
+                    // Asegurar que esté dentro del canvas
+                    x = Math.max(margin, Math.min(rect.width - margin, x));
+                    y = Math.max(margin, Math.min(rect.height - margin, y));
+
+                    // Calcular la distancia mínima a otros nodos
+                    let minDistance = Infinity;
+                    for (let node of existing) {
+                        const dx = x - node.x;
+                        const dy = y - node.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        minDistance = Math.min(minDistance, distance);
                     }
-                } else if (e.touches.length === 2) {
-                    const touch1 = e.touches[0];
-                    const touch2 = e.touches[1];
-                    const dx = touch1.clientX - touch2.clientX;
-                    const dy = touch1.clientY - touch2.clientY;
-                    const currentDistance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (this.lastTouchDistance > 0) {
-                        const centerX = (touch1.clientX + touch2.clientX) / 2 - rect.left;
-                        const centerY = (touch1.clientY + touch2.clientY) / 2 - rect.top;
-                        const zoomFactor = currentDistance / this.lastTouchDistance;
-                        this.zoomAt(centerX, centerY, zoomFactor);
+
+                    if (minDistance > maxDistance) {
+                        maxDistance = minDistance;
+                        bestX = x;
+                        bestY = y;
                     }
-                    
-                    this.lastTouchDistance = currentDistance;
                 }
-            }
 
-            onTouchEnd(e) {
-                e.preventDefault();
-                if (e.touches.length === 0) {
-                    this.isDragging = false;
-                    this.dragNode = null;
-                    this.isPanning = false;
-                    this.lastTouchDistance = 0;
-                }
+                return { x: bestX, y: bestY };
             }
-
-            // Funciones de zoom
-            zoomAt(x, y, factor) {
-                const newZoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoom * factor));
-                
-                if (newZoom !== this.zoom) {
-                    const zoomChange = newZoom / this.zoom;
-                    this.panX = x - (x - this.panX) * zoomChange;
-                    this.panY = y - (y - this.panY) * zoomChange;
-                    this.zoom = newZoom;
-                    this.updateZoomDisplay();
-                }
-            }
-
-            zoomIn() {
-                const centerX = this.canvasWidth / 2;
-                const centerY = this.canvasHeight / 2;
-                this.zoomAt(centerX, centerY, 1.2);
-            }
-
-            zoomOut() {
-                const centerX = this.canvasWidth / 2;
-                const centerY = this.canvasHeight / 2;
-                this.zoomAt(centerX, centerY, 0.8);
-            }
-
-            resetZoom() {
-                this.zoom = 1;
-                this.panX = 0;
-                this.panY = 0;
-                this.updateZoomDisplay();
-            }
-
-            updateZoomDisplay() {
-                const percentage = Math.round(this.zoom * 100);
-                document.getElementById('zoomInfo').textContent = percentage + '%';
-                const fullscreenZoom = document.getElementById('fullscreenZoomInfo');
-                if (fullscreenZoom) {
-                    fullscreenZoom.textContent = percentage + '%';
-                }
-            }
-
-            onFullscreenChange() {
-                if (!document.fullscreenElement) {
-                    this.exitFullscreen();
-                }
-            }
-
+            
             async addConnection(person1, person2) {
                 person1 = person1.trim().toLowerCase();
                 person2 = person2.trim().toLowerCase();
@@ -849,7 +702,6 @@
                     return false;
                 }
 
-                // Verificar si la conexión ya existe en Firestore
                 const connectionsRef = db.collection('connections');
                 const existingConnection1 = await connectionsRef.where('person1', '==', person1).where('person2', '==', person2).get();
                 const existingConnection2 = await connectionsRef.where('person1', '==', person2).where('person2', '==', person1).get();
@@ -859,7 +711,6 @@
                     return false;
                 }
                 
-                // Agregar conexión a Firestore
                 try {
                     await db.collection('connections').add({
                         person1: person1,
@@ -903,6 +754,7 @@
 
             setupRealtimeListener() {
                 db.collection('connections').onSnapshot(snapshot => {
+                    const oldNodesCount = this.nodes.size;
                     this.edges = [];
                     this.nodes.clear();
                     
@@ -911,11 +763,9 @@
                         const id = doc.id;
                         this.edges.push({ id: id, from: data.person1, to: data.person2 });
                         
-                        // Crear o actualizar nodos
                         this.getOrCreateNode(data.person1);
                         this.getOrCreateNode(data.person2);
                         
-                        // Incrementar conexiones
                         this.nodes.get(data.person1).connections++;
                         this.nodes.get(data.person2).connections++;
                     });
@@ -923,6 +773,11 @@
                     this.updateNodeSizes();
                     this.updateStats();
                     this.updateConnectionsList();
+
+                    // Auto-organizar si es la primera vez o hay muchos nodos nuevos
+                    if (oldNodesCount === 0 && this.nodes.size > 2) {
+                        setTimeout(() => this.organizeNetwork(), 500);
+                    }
                 }, err => {
                     console.error('Error fetching data:', err);
                     this.showError('Error al cargar los datos en tiempo real');
@@ -931,15 +786,18 @@
 
             getOrCreateNode(name) {
                 if (!this.nodes.has(name)) {
+                    const position = this.positionNodeInitially(name);
                     const node = {
                         name: name,
-                        x: (Math.random() - 0.5) * 300 + this.canvasWidth / 2,
-                        y: (Math.random() - 0.5) * 300 + this.canvasHeight / 2,
-                        radius: 20,
+                        x: position.x,
+                        y: position.y,
+                        radius: 25,
                         connections: 0,
                         color: this.getRandomColor(),
                         vx: 0,
-                        vy: 0
+                        vy: 0,
+                        fx: 0,
+                        fy: 0
                     };
                     this.nodes.set(name, node);
                 }
@@ -947,7 +805,7 @@
 
             updateNodeSizes() {
                 for (let [name, node] of this.nodes) {
-                    node.radius = 20 + (node.connections * 8);
+                    node.radius = Math.max(25, 20 + (node.connections * 6));
                 }
             }
 
@@ -961,319 +819,32 @@
             }
 
             draw() {
-                this.ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
-                
-                this.ctx.save();
-                this.ctx.translate(this.panX, this.panY);
-                this.ctx.scale(this.zoom, this.zoom);
+                const rect = this.canvas.getBoundingClientRect();
+                this.ctx.clearRect(0, 0, rect.width, rect.height);
 
-                // Dibujar conexiones
-                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-                this.ctx.lineWidth = 2 / this.zoom;
+                // Dibujar conexiones con mejor estilo
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                this.ctx.lineWidth = 2;
                 
                 for (let edge of this.edges) {
                     const nodeFrom = this.nodes.get(edge.from);
                     const nodeTo = this.nodes.get(edge.to);
                     
                     if (nodeFrom && nodeTo) {
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(nodeFrom.x, nodeFrom.y);
-                        this.ctx.lineTo(nodeTo.x, nodeTo.y);
-                        this.ctx.stroke();
+                        // Calcular puntos de conexión en el borde de los círculos
+                        const dx = nodeTo.x - nodeFrom.x;
+                        const dy = nodeTo.y - nodeFrom.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance > 0) {
+                            const fromX = nodeFrom.x + (dx / distance) * nodeFrom.radius;
+                            const fromY = nodeFrom.y + (dy / distance) * nodeFrom.radius;
+                            const toX = nodeTo.x - (dx / distance) * nodeTo.radius;
+                            const toY = nodeTo.y - (dy / distance) * nodeTo.radius;
+
+                            this.ctx.beginPath();
+                            this.ctx.moveTo(fromX, fromY);
+                            this.ctx.lineTo(toX, toY);
+                            this.ctx.stroke();
+                        }
                     }
-                }
-
-                // Dibujar nodos
-                for (let [name, node] of this.nodes) {
-                    // Sombra
-                    this.ctx.beginPath();
-                    this.ctx.arc(node.x + 2, node.y + 2, node.radius, 0, 2 * Math.PI);
-                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-                    this.ctx.fill();
-
-                    // Nodo principal
-                    this.ctx.beginPath();
-                    this.ctx.arc(node.x, node.y, node.radius, 0, 2 * Math.PI);
-                    this.ctx.fillStyle = node.color;
-                    this.ctx.fill();
-                    
-                    // Borde del nodo
-                    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-                    this.ctx.lineWidth = 2 / this.zoom;
-                    this.ctx.stroke();
-
-                    // Texto del nombre
-                    this.ctx.fillStyle = 'white';
-                    this.ctx.font = `bold ${12 / this.zoom}px Arial`;
-                    this.ctx.textAlign = 'center';
-                    this.ctx.textBaseline = 'middle';
-                    this.ctx.fillText(name, node.x, node.y);
-
-                    // Número de conexiones
-                    if (node.connections > 0) {
-                        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-                        this.ctx.font = `bold ${10 / this.zoom}px Arial`;
-                        this.ctx.fillText(node.connections.toString(), node.x, node.y + node.radius + 15);
-                    }
-                }
-
-                this.ctx.restore();
-            }
-
-            animate() {
-                this.draw();
-                requestAnimationFrame(() => this.animate());
-            }
-
-            updateStats() {
-                document.getElementById('totalPersons').textContent = this.nodes.size;
-                document.getElementById('totalConnections').textContent = this.edges.length;
-
-                let mostConnected = '-';
-                let maxConnections = 0;
-                for (let [name, node] of this.nodes) {
-                    if (node.connections > maxConnections) {
-                        maxConnections = node.connections;
-                        mostConnected = name;
-                    }
-                }
-                document.getElementById('mostConnected').textContent = mostConnected;
-            }
-
-            updateConnectionsList() {
-                const list = document.getElementById('connectionsList');
-                list.innerHTML = '';
-
-                if (this.edges.length === 0) {
-                    list.innerHTML = '<p style="color: rgba(255,255,255,0.6); text-align: center;">No hay conexiones</p>';
-                    return;
-                }
-
-                this.edges.forEach((edge) => {
-                    const item = document.createElement('div');
-                    item.className = 'connection-item';
-                    
-                    if (this.isAdminMode) {
-                        item.innerHTML = `
-                            <span>${edge.from} ↔ ${edge.to}</span>
-                            <button class="delete-btn" onclick="networkManager.removeConnection('${edge.id}')">
-                                Eliminar
-                            </button>
-                        `;
-                    } else {
-                        item.innerHTML = `<span>${edge.from} ↔ ${edge.to}</span>`;
-                    }
-                    list.appendChild(item);
-                });
-            }
-
-            showError(message) {
-                const errorDiv = document.getElementById('errorMessage');
-                errorDiv.textContent = message;
-                errorDiv.style.display = 'block';
-                setTimeout(() => {
-                    errorDiv.style.display = 'none';
-                }, 3000);
-            }
-
-            showSuccess(message) {
-                const successDiv = document.getElementById('successMessage');
-                successDiv.textContent = message;
-                successDiv.style.display = 'block';
-                setTimeout(() => {
-                    successDiv.style.display = 'none';
-                }, 3000);
-            }
-
-            showLoginError(message) {
-                const errorDiv = document.getElementById('loginError');
-                errorDiv.textContent = message;
-                errorDiv.style.display = 'block';
-                setTimeout(() => {
-                    errorDiv.style.display = 'none';
-                }, 3000);
-            }
-        }
-
-        const ADMIN_PASSWORD = 'admin123';
-        let networkManager;
-        let isAdminMode = false;
-
-        function login() {
-            const password = document.getElementById('adminPassword').value;
-            
-            if (password === ADMIN_PASSWORD) {
-                enterAdminMode();
-            } else {
-                if (networkManager) {
-                    networkManager.showLoginError('Contraseña incorrecta');
-                } else {
-                    const tempDiv = document.getElementById('loginError');
-                    tempDiv.textContent = 'Contraseña incorrecta';
-                    tempDiv.style.display = 'block';
-                    setTimeout(() => {
-                        tempDiv.style.display = 'none';
-                    }, 3000);
-                }
-            }
-            document.getElementById('adminPassword').value = '';
-        }
-
-        function enterAdminMode() {
-            isAdminMode = true;
-            document.getElementById('loginScreen').classList.add('hidden');
-            document.getElementById('mainScreen').classList.remove('hidden');
-            document.getElementById('mainScreen').classList.add('fade-in');
-            
-            document.getElementById('adminPanel').classList.remove('hidden');
-            document.getElementById('viewerNotice').classList.add('hidden');
-            document.getElementById('headerSubtitle').textContent = 'Administra tu red de conexiones';
-            
-            if (!networkManager) {
-                networkManager = new NetworkManager();
-            }
-            networkManager.enableAdminMode();
-        }
-
-        function enterViewMode() {
-            isAdminMode = false;
-            document.getElementById('loginScreen').classList.add('hidden');
-            document.getElementById('mainScreen').classList.remove('hidden');
-            document.getElementById('mainScreen').classList.add('fade-in');
-            
-            document.getElementById('adminPanel').classList.add('hidden');
-            document.getElementById('viewerNotice').classList.remove('hidden');
-            document.getElementById('headerSubtitle').textContent = 'Explora la red de personas y sus conexiones';
-            
-            if (!networkManager) {
-                networkManager = new NetworkManager();
-            }
-            networkManager.enableViewMode();
-        }
-
-        function logout() {
-            isAdminMode = false;
-            document.getElementById('loginScreen').classList.remove('hidden');
-            document.getElementById('mainScreen').classList.add('hidden');
-            document.getElementById('adminPassword').focus();
-            
-            // Salir de pantalla completa si está activa
-            if (document.fullscreenElement) {
-                document.exitFullscreen();
-            }
-        }
-
-        function toggleFullscreen() {
-            const container = document.getElementById('networkContainer');
-            const controls = document.getElementById('fullscreenControls');
-            const zoomControls = document.getElementById('fullscreenZoomControls');
-            
-            if (!networkManager.isFullscreen) {
-                // Entrar a pantalla completa
-                if (document.documentElement.requestFullscreen) {
-                    document.documentElement.requestFullscreen();
-                } else if (document.documentElement.webkitRequestFullscreen) {
-                    document.documentElement.webkitRequestFullscreen();
-                } else if (document.documentElement.msRequestFullscreen) {
-                    document.documentElement.msRequestFullscreen();
-                }
-                
-                container.classList.add('fullscreen-mode');
-                controls.classList.remove('hidden');
-                zoomControls.classList.remove('hidden');
-                networkManager.isFullscreen = true;
-                
-                setTimeout(() => {
-                    networkManager.resizeCanvas();
-                    networkManager.centerNetwork();
-                }, 200);
-            } else {
-                exitFullscreen();
-            }
-        }
-
-        function exitFullscreen() {
-            const container = document.getElementById('networkContainer');
-            const controls = document.getElementById('fullscreenControls');
-            const zoomControls = document.getElementById('fullscreenZoomControls');
-            
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
-            } else if (document.webkitExitFullscreen) {
-                document.webkitExitFullscreen();
-            } else if (document.msExitFullscreen) {
-                document.msExitFullscreen();
-            }
-            
-            container.classList.remove('fullscreen-mode');
-            controls.classList.add('hidden');
-            zoomControls.classList.add('hidden');
-            
-            if (networkManager) {
-                networkManager.isFullscreen = false;
-                setTimeout(() => {
-                    networkManager.resizeCanvas();
-                    networkManager.centerNetwork();
-                }, 200);
-            }
-        }
-
-        async function addConnection() {
-            if (!isAdminMode || !networkManager) return;
-            
-            const person1 = document.getElementById('person1').value;
-            const person2 = document.getElementById('person2').value;
-            
-            const success = await networkManager.addConnection(person1, person2);
-            if (success) {
-                document.getElementById('person1').value = '';
-                document.getElementById('person2').value = '';
-            }
-        }
-
-        async function clearNetwork() {
-            if (!isAdminMode || !networkManager) return;
-            await networkManager.clearNetwork();
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('adminPassword').focus();
-            
-            document.getElementById('adminPassword').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    login();
-                }
-            });
-
-            document.getElementById('person1').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter' && isAdminMode) {
-                    document.getElementById('person2').focus();
-                }
-            });
-
-            document.getElementById('person2').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter' && isAdminMode) {
-                    addConnection();
-                }
-            });
-
-            // Prevenir zoom del navegador en dispositivos móviles
-            document.addEventListener('touchmove', function(e) {
-                if (e.scale !== 1) { 
-                    e.preventDefault(); 
-                }
-            }, { passive: false });
-            
-            // Prevenir zoom con doble toque
-            let lastTouchEnd = 0;
-            document.addEventListener('touchend', function (event) {
-                const now = (new Date()).getTime();
-                if (now - lastTouchEnd <= 300) {
-                    event.preventDefault();
-                }
-                lastTouchEnd = now;
-            }, false);
-        });
-    </script>
-</body>
-</html>
