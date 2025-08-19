@@ -158,6 +158,11 @@
             margin-left: 10px;
         }
 
+        .btn-reset {
+            background: linear-gradient(45deg, #3742fa, #2f3542);
+            margin-left: 5px;
+        }
+
         .btn-logout {
             background: linear-gradient(45deg, #ff6b6b, #ee5a52);
             padding: 8px 15px;
@@ -191,6 +196,31 @@
 
         .admin-mode #networkCanvas:active {
             cursor: grabbing;
+        }
+
+        .controls {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
         }
 
         .stats {
@@ -307,6 +337,12 @@
                 flex-direction: column;
                 gap: 15px;
             }
+
+            .controls {
+                position: static;
+                justify-content: center;
+                margin-bottom: 15px;
+            }
         }
     </style>
 </head>
@@ -349,6 +385,7 @@
                     <input type="text" id="person1" placeholder="Primera persona">
                     <input type="text" id="person2" placeholder="Segunda persona">
                     <button class="btn" onclick="addConnection()">Conectar</button>
+                    <button class="btn btn-reset" onclick="resetLayout()">Reorganizar</button>
                     <button class="btn btn-clear" onclick="clearNetwork()">Limpiar Todo</button>
                 </div>
             </div>
@@ -360,6 +397,11 @@
             </div>
 
             <div class="network-container">
+                <div class="controls">
+                    <button class="control-btn" onclick="networkManager.zoomIn()">🔍+</button>
+                    <button class="control-btn" onclick="networkManager.zoomOut()">🔍-</button>
+                    <button class="control-btn" onclick="networkManager.centerView()">🎯</button>
+                </div>
                 <canvas id="networkCanvas"></canvas>
             </div>
 
@@ -375,6 +417,10 @@
                 <div class="stat-card">
                     <div class="stat-number" id="mostConnected">-</div>
                     <div class="stat-label">Más Conectado</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="avgConnections">0</div>
+                    <div class="stat-label">Conexiones Promedio</div>
                 </div>
             </div>
 
@@ -416,6 +462,20 @@
                 this.animationId = null;
                 this.isAdminMode = false;
                 
+                // Physics and layout properties
+                this.zoom = 1;
+                this.panX = 0;
+                this.panY = 0;
+                this.centerX = 0;
+                this.centerY = 0;
+                
+                // Force-directed layout parameters
+                this.repulsionForce = 3000;
+                this.attractionForce = 0.01;
+                this.dampening = 0.85;
+                this.minDistance = 100;
+                this.maxDistance = 300;
+                
                 this.setupCanvas();
                 this.animate();
                 this.setupRealtimeListener();
@@ -428,6 +488,9 @@
                 this.ctx.scale(2, 2);
                 this.canvas.style.width = rect.width + 'px';
                 this.canvas.style.height = rect.height + 'px';
+                
+                this.centerX = rect.width / 2;
+                this.centerY = rect.height / 2;
             }
 
             enableAdminMode() {
@@ -450,11 +513,13 @@
                 this.onMouseDown = this.onMouseDown.bind(this);
                 this.onMouseMove = this.onMouseMove.bind(this);
                 this.onMouseUp = this.onMouseUp.bind(this);
+                this.onWheel = this.onWheel.bind(this);
 
                 this.canvas.addEventListener('mousedown', this.onMouseDown);
                 this.canvas.addEventListener('mousemove', this.onMouseMove);
                 this.canvas.addEventListener('mouseup', this.onMouseUp);
                 this.canvas.addEventListener('mouseleave', this.onMouseUp);
+                this.canvas.addEventListener('wheel', this.onWheel, { passive: false });
 
                 window.addEventListener('resize', () => {
                     setTimeout(() => this.setupCanvas(), 100);
@@ -466,14 +531,29 @@
                 this.canvas.removeEventListener('mousemove', this.onMouseMove);
                 this.canvas.removeEventListener('mouseup', this.onMouseUp);
                 this.canvas.removeEventListener('mouseleave', this.onMouseUp);
+                this.canvas.removeEventListener('wheel', this.onWheel);
+            }
+
+            onWheel(e) {
+                e.preventDefault();
+                const rect = this.canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                
+                const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+                const newZoom = Math.max(0.3, Math.min(3, this.zoom * zoomFactor));
+                
+                if (newZoom !== this.zoom) {
+                    this.panX = mouseX - (mouseX - this.panX) * (newZoom / this.zoom);
+                    this.panY = mouseY - (mouseY - this.panY) * (newZoom / this.zoom);
+                    this.zoom = newZoom;
+                }
             }
 
             onMouseDown(e) {
-                if (!this.isAdminMode) return;
-
                 const rect = this.canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
+                const x = (e.clientX - rect.left - this.panX) / this.zoom;
+                const y = (e.clientY - rect.top - this.panY) / this.zoom;
                 
                 for (let [name, node] of this.nodes) {
                     const dx = x - node.x;
@@ -484,29 +564,136 @@
                         this.isDragging = true;
                         this.dragNode = node;
                         this.mousePos = { x, y };
+                        // Stop physics on dragged node
+                        node.vx = 0;
+                        node.vy = 0;
                         break;
                     }
                 }
             }
 
             onMouseMove(e) {
-                if (!this.isAdminMode || !this.isDragging || !this.dragNode) return;
-
                 const rect = this.canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
+                const x = (e.clientX - rect.left - this.panX) / this.zoom;
+                const y = (e.clientY - rect.top - this.panY) / this.zoom;
                 
-                this.dragNode.x = Math.max(this.dragNode.radius, 
-                                          Math.min(rect.width - this.dragNode.radius, x));
-                this.dragNode.y = Math.max(this.dragNode.radius, 
-                                          Math.min(rect.height - this.dragNode.radius, y));
+                if (this.isDragging && this.dragNode) {
+                    this.dragNode.x = x;
+                    this.dragNode.y = y;
+                    // Keep dragged node still
+                    this.dragNode.vx = 0;
+                    this.dragNode.vy = 0;
+                }
             }
 
             onMouseUp() {
                 this.isDragging = false;
                 this.dragNode = null;
             }
-            
+
+            zoomIn() {
+                this.zoom = Math.min(3, this.zoom * 1.2);
+            }
+
+            zoomOut() {
+                this.zoom = Math.max(0.3, this.zoom * 0.8);
+            }
+
+            centerView() {
+                if (this.nodes.size === 0) return;
+                
+                let minX = Infinity, maxX = -Infinity;
+                let minY = Infinity, maxY = -Infinity;
+                
+                for (let [name, node] of this.nodes) {
+                    minX = Math.min(minX, node.x);
+                    maxX = Math.max(maxX, node.x);
+                    minY = Math.min(minY, node.y);
+                    maxY = Math.max(maxY, node.y);
+                }
+                
+                const networkCenterX = (minX + maxX) / 2;
+                const networkCenterY = (minY + maxY) / 2;
+                
+                this.panX = this.centerX - networkCenterX * this.zoom;
+                this.panY = this.centerY - networkCenterY * this.zoom;
+                
+                // Auto-zoom to fit
+                const rect = this.canvas.getBoundingClientRect();
+                const networkWidth = maxX - minX + 200;
+                const networkHeight = maxY - minY + 200;
+                const zoomX = rect.width / networkWidth;
+                const zoomY = rect.height / networkHeight;
+                this.zoom = Math.min(2, Math.max(0.3, Math.min(zoomX, zoomY)));
+            }
+
+            // Force-directed layout algorithm
+            applyForces() {
+                if (this.nodes.size < 2) return;
+                
+                // Apply repulsion forces between all nodes
+                for (let [name1, node1] of this.nodes) {
+                    if (node1 === this.dragNode) continue;
+                    
+                    for (let [name2, node2] of this.nodes) {
+                        if (name1 === name2) continue;
+                        
+                        const dx = node1.x - node2.x;
+                        const dy = node1.y - node2.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance < this.minDistance && distance > 0) {
+                            const force = this.repulsionForce / (distance * distance);
+                            const forceX = (dx / distance) * force;
+                            const forceY = (dy / distance) * force;
+                            
+                            node1.vx += forceX * 0.1;
+                            node1.vy += forceY * 0.1;
+                        }
+                    }
+                }
+                
+                // Apply attraction forces for connected nodes
+                for (let edge of this.edges) {
+                    const node1 = this.nodes.get(edge.from);
+                    const node2 = this.nodes.get(edge.to);
+                    
+                    if (!node1 || !node2) continue;
+                    if (node1 === this.dragNode || node2 === this.dragNode) continue;
+                    
+                    const dx = node2.x - node1.x;
+                    const dy = node2.y - node1.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance > this.maxDistance) {
+                        const force = this.attractionForce * distance;
+                        const forceX = (dx / distance) * force;
+                        const forceY = (dy / distance) * force;
+                        
+                        node1.vx += forceX;
+                        node1.vy += forceY;
+                        node2.vx -= forceX;
+                        node2.vy -= forceY;
+                    }
+                }
+                
+                // Update positions and apply damping
+                for (let [name, node] of this.nodes) {
+                    if (node === this.dragNode) continue;
+                    
+                    node.vx *= this.dampening;
+                    node.vy *= this.dampening;
+                    
+                    node.x += node.vx;
+                    node.y += node.vy;
+                    
+                    // Keep nodes within reasonable bounds
+                    const margin = 50;
+                    node.x = Math.max(margin, Math.min(800 - margin, node.x));
+                    node.y = Math.max(margin, Math.min(600 - margin, node.y));
+                }
+            }
+
             async addConnection(person1, person2) {
                 person1 = person1.trim().toLowerCase();
                 person2 = person2.trim().toLowerCase();
@@ -573,28 +760,69 @@
                 }
             }
 
+            resetLayout() {
+                // Reset node positions and velocities for better layout
+                const rect = this.canvas.getBoundingClientRect();
+                const centerX = 400;
+                const centerY = 300;
+                const radius = 150;
+                
+                let angle = 0;
+                const angleStep = (2 * Math.PI) / this.nodes.size;
+                
+                for (let [name, node] of this.nodes) {
+                    // Arrange in circle initially
+                    node.x = centerX + Math.cos(angle) * radius + (Math.random() - 0.5) * 50;
+                    node.y = centerY + Math.sin(angle) * radius + (Math.random() - 0.5) * 50;
+                    node.vx = 0;
+                    node.vy = 0;
+                    angle += angleStep;
+                }
+                
+                // Center view after reset
+                setTimeout(() => this.centerView(), 100);
+            }
+
             setupRealtimeListener() {
                 db.collection('connections').onSnapshot(snapshot => {
+                    const oldNodes = new Set(this.nodes.keys());
                     this.edges = [];
-                    this.nodes.clear();
+                    const nodeConnections = new Map();
                     
                     snapshot.forEach(doc => {
                         const data = doc.data();
                         const id = doc.id;
                         this.edges.push({ id: id, from: data.person1, to: data.person2 });
                         
-                        // Crear o actualizar nodos
+                        // Count connections for each person
+                        nodeConnections.set(data.person1, (nodeConnections.get(data.person1) || 0) + 1);
+                        nodeConnections.set(data.person2, (nodeConnections.get(data.person2) || 0) + 1);
+                        
+                        // Create or update nodes
                         this.getOrCreateNode(data.person1);
                         this.getOrCreateNode(data.person2);
-                        
-                        // Incrementar conexiones
-                        this.nodes.get(data.person1).connections++;
-                        this.nodes.get(data.person2).connections++;
                     });
+                    
+                    // Update connection counts
+                    for (let [name, node] of this.nodes) {
+                        node.connections = nodeConnections.get(name) || 0;
+                    }
+                    
+                    // Remove nodes with no connections
+                    for (let name of oldNodes) {
+                        if (!nodeConnections.has(name)) {
+                            this.nodes.delete(name);
+                        }
+                    }
                     
                     this.updateNodeSizes();
                     this.updateStats();
                     this.updateConnectionsList();
+                    
+                    // Auto-center if this is the first load
+                    if (this.nodes.size > 0 && oldNodes.size === 0) {
+                        this.resetLayout();
+                    }
                 }, err => {
                     console.error('Error fetching data:', err);
                     this.showError('Error al cargar los datos en tiempo real');
@@ -606,8 +834,8 @@
                     const rect = this.canvas.getBoundingClientRect();
                     const node = {
                         name: name,
-                        x: Math.random() * (rect.width - 100) + 50,
-                        y: Math.random() * (rect.height - 100) + 50,
+                        x: 400 + (Math.random() - 0.5) * 200,
+                        y: 300 + (Math.random() - 0.5) * 200,
                         radius: 20,
                         connections: 0,
                         color: this.getRandomColor(),
@@ -616,11 +844,12 @@
                     };
                     this.nodes.set(name, node);
                 }
+                return this.nodes.get(name);
             }
 
             updateNodeSizes() {
                 for (let [name, node] of this.nodes) {
-                    node.radius = 20 + (node.connections * 8);
+                    node.radius = Math.max(15, Math.min(40, 15 + (node.connections * 5)));
                 }
             }
 
@@ -628,7 +857,9 @@
                 const colors = [
                     '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', 
                     '#feca57', '#ff9ff3', '#54a0ff', '#5f27cd',
-                    '#00d2d3', '#ff9f43', '#a55eea', '#26de81'
+                    '#00d2d3', '#ff9f43', '#a55eea', '#26de81',
+                    '#fd79a8', '#fdcb6e', '#6c5ce7', '#a29bfe',
+                    '#74b9ff', '#0984e3', '#00b894', '#00cec9'
                 ];
                 return colors[Math.floor(Math.random() * colors.length)];
             }
@@ -637,8 +868,16 @@
                 const rect = this.canvas.getBoundingClientRect();
                 this.ctx.clearRect(0, 0, rect.width, rect.height);
 
-                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-                this.ctx.lineWidth = 2;
+                // Save the current transform
+                this.ctx.save();
+                
+                // Apply zoom and pan
+                this.ctx.translate(this.panX, this.panY);
+                this.ctx.scale(this.zoom, this.zoom);
+
+                // Draw edges first
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                this.ctx.lineWidth = 2 / this.zoom;
                 
                 for (let edge of this.edges) {
                     const nodeFrom = this.nodes.get(edge.from);
@@ -652,43 +891,60 @@
                     }
                 }
 
+                // Draw nodes
                 for (let [name, node] of this.nodes) {
+                    // Shadow
                     this.ctx.beginPath();
-                    this.ctx.arc(node.x + 2, node.y + 2, node.radius, 0, 2 * Math.PI);
-                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                    this.ctx.arc(node.x + 3, node.y + 3, node.radius, 0, 2 * Math.PI);
+                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
                     this.ctx.fill();
 
+                    // Main node circle
                     this.ctx.beginPath();
                     this.ctx.arc(node.x, node.y, node.radius, 0, 2 * Math.PI);
                     this.ctx.fillStyle = node.color;
                     this.ctx.fill();
                     
+                    // Node border
                     this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-                    this.ctx.lineWidth = 2;
+                    this.ctx.lineWidth = 3 / this.zoom;
                     this.ctx.stroke();
 
+                    // Node label
                     this.ctx.fillStyle = 'white';
-                    this.ctx.font = 'bold 12px Arial';
+                    this.ctx.font = `bold ${Math.max(10, 12 / this.zoom)}px Arial`;
                     this.ctx.textAlign = 'center';
                     this.ctx.textBaseline = 'middle';
                     this.ctx.fillText(name, node.x, node.y);
 
+                    // Connection count
                     if (node.connections > 0) {
                         this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-                        this.ctx.font = 'bold 10px Arial';
-                        this.ctx.fillText(node.connections.toString(), node.x, node.y + node.radius + 15);
+                        this.ctx.font = `bold ${Math.max(8, 10 / this.zoom)}px Arial`;
+                        this.ctx.fillText(node.connections.toString(), node.x, node.y + node.radius + 15 / this.zoom);
                     }
                 }
+
+                // Restore the transform
+                this.ctx.restore();
             }
 
             animate() {
+                // Apply physics only if not in viewer mode or if there are multiple nodes
+                if (this.nodes.size > 1 && (!this.isDragging || this.dragNode)) {
+                    this.applyForces();
+                }
+                
                 this.draw();
                 this.animationId = requestAnimationFrame(() => this.animate());
             }
 
             updateStats() {
-                document.getElementById('totalPersons').textContent = this.nodes.size;
-                document.getElementById('totalConnections').textContent = this.edges.length;
+                const totalPersons = this.nodes.size;
+                const totalConnections = this.edges.length;
+                
+                document.getElementById('totalPersons').textContent = totalPersons;
+                document.getElementById('totalConnections').textContent = totalConnections;
 
                 let mostConnected = '-';
                 let maxConnections = 0;
@@ -699,6 +955,10 @@
                     }
                 }
                 document.getElementById('mostConnected').textContent = mostConnected;
+
+                // Average connections
+                const avgConnections = totalPersons > 0 ? (totalConnections * 2 / totalPersons).toFixed(1) : 0;
+                document.getElementById('avgConnections').textContent = avgConnections;
             }
 
             updateConnectionsList() {
@@ -710,7 +970,14 @@
                     return;
                 }
 
-                this.edges.forEach((edge) => {
+                // Sort connections alphabetically
+                const sortedEdges = [...this.edges].sort((a, b) => {
+                    const nameA = `${a.from} ↔ ${a.to}`;
+                    const nameB = `${b.from} ↔ ${b.to}`;
+                    return nameA.localeCompare(nameB);
+                });
+
+                sortedEdges.forEach((edge) => {
                     const item = document.createElement('div');
                     item.className = 'connection-item';
                     
@@ -817,6 +1084,12 @@
             document.getElementById('loginScreen').classList.remove('hidden');
             document.getElementById('mainScreen').classList.add('hidden');
             document.getElementById('adminPassword').focus();
+        }
+
+        function resetLayout() {
+            if (networkManager) {
+                networkManager.resetLayout();
+            }
         }
 
         async function addConnection() {
