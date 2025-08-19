@@ -16,6 +16,7 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             color: white;
+            overflow-x: hidden;
         }
 
         .container {
@@ -174,23 +175,105 @@
             overflow: hidden;
         }
 
+        .network-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            gap: 15px;
+        }
+
+        .zoom-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .zoom-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .zoom-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+
+        .zoom-info {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .fullscreen-btn {
+            background: linear-gradient(45deg, #a55eea, #3742fa);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
         #networkCanvas {
             width: 100%;
             height: 500px;
             background: rgba(0, 0, 0, 0.1);
             border-radius: 10px;
-        }
-
-        .viewer-mode #networkCanvas {
-            cursor: default;
-        }
-
-        .admin-mode #networkCanvas {
+            touch-action: none;
             cursor: grab;
         }
 
-        .admin-mode #networkCanvas:active {
+        #networkCanvas:active {
             cursor: grabbing;
+        }
+
+        .fullscreen-mode {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1000;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 0;
+            padding: 0;
+        }
+
+        .fullscreen-mode #networkCanvas {
+            width: 100vw;
+            height: 100vh;
+            border-radius: 0;
+        }
+
+        .fullscreen-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 1001;
+        }
+
+        .fullscreen-zoom-controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            z-index: 1001;
         }
 
         .stats {
@@ -285,6 +368,16 @@
             text-align: center;
         }
 
+        .network-instructions {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
         .hidden {
             display: none !important;
         }
@@ -306,6 +399,25 @@
             .admin-header {
                 flex-direction: column;
                 gap: 15px;
+            }
+
+            .network-controls {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .zoom-controls {
+                order: 2;
+            }
+
+            .fullscreen-controls {
+                top: 10px;
+                right: 10px;
+            }
+
+            .fullscreen-zoom-controls {
+                top: 10px;
+                left: 10px;
             }
         }
     </style>
@@ -359,8 +471,31 @@
                 <button class="btn" onclick="logout()" style="margin-left: 15px; padding: 8px 15px; font-size: 14px;">Cambiar Modo</button>
             </div>
 
-            <div class="network-container">
+            <div class="network-container" id="networkContainer">
+                <div class="network-instructions">
+                    📱 Arrastra para mover nodos • 🔍 Rueda del mouse o pellizca para zoom • 🖱️ Clic derecho para centrar
+                </div>
+                <div class="network-controls">
+                    <div class="zoom-controls">
+                        <button class="zoom-btn" onclick="networkManager.zoomOut()" title="Alejar">−</button>
+                        <div class="zoom-info" id="zoomInfo">100%</div>
+                        <button class="zoom-btn" onclick="networkManager.zoomIn()" title="Acercar">+</button>
+                        <button class="zoom-btn" onclick="networkManager.resetZoom()" title="Restablecer zoom">⌂</button>
+                    </div>
+                    <button class="btn fullscreen-btn" onclick="toggleFullscreen()">🔍 Pantalla Completa</button>
+                </div>
                 <canvas id="networkCanvas"></canvas>
+                
+                <!-- Controles para modo pantalla completa -->
+                <div class="fullscreen-controls hidden" id="fullscreenControls">
+                    <button class="btn btn-logout" onclick="toggleFullscreen()">✕ Salir</button>
+                </div>
+                <div class="fullscreen-zoom-controls hidden" id="fullscreenZoomControls">
+                    <button class="zoom-btn" onclick="networkManager.zoomOut()">−</button>
+                    <div class="zoom-info" id="fullscreenZoomInfo">100%</div>
+                    <button class="zoom-btn" onclick="networkManager.zoomIn()">+</button>
+                    <button class="zoom-btn" onclick="networkManager.resetZoom()">⌂</button>
+                </div>
             </div>
 
             <div class="stats">
@@ -389,8 +524,6 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
     <script>
-        // *** PASO 1: REEMPLAZA ESTO CON LA CONFIGURACIÓN DE TU PROYECTO FIREBASE ***
-
         const firebaseConfig = {
           apiKey: "AIzaSyDkzMk-Kd-UHH0TAkNRK8y-2V5eUI7yJ_U",
           authDomain: "margarito-2-a7389.firebaseapp.com",
@@ -412,101 +545,296 @@
                 this.ctx = this.canvas.getContext('2d');
                 this.isDragging = false;
                 this.dragNode = null;
-                this.mousePos = { x: 0, y: 0 };
-                this.animationId = null;
                 this.isAdminMode = false;
+                this.isFullscreen = false;
+                
+                // Zoom y pan
+                this.zoom = 1;
+                this.panX = 0;
+                this.panY = 0;
+                this.minZoom = 0.1;
+                this.maxZoom = 5;
+                
+                // Para gesture de pellizco
+                this.lastTouchDistance = 0;
+                this.isPanning = false;
+                this.lastPanPoint = { x: 0, y: 0 };
                 
                 this.setupCanvas();
+                this.setupEventListeners();
                 this.animate();
                 this.setupRealtimeListener();
             }
 
             setupCanvas() {
+                this.resizeCanvas();
+            }
+
+            resizeCanvas() {
                 const rect = this.canvas.getBoundingClientRect();
-                this.canvas.width = rect.width * 2;
-                this.canvas.height = rect.height * 2;
-                this.ctx.scale(2, 2);
+                const dpr = window.devicePixelRatio || 1;
+                
+                this.canvas.width = rect.width * dpr;
+                this.canvas.height = rect.height * dpr;
+                this.ctx.scale(dpr, dpr);
                 this.canvas.style.width = rect.width + 'px';
                 this.canvas.style.height = rect.height + 'px';
+                
+                this.canvasWidth = rect.width;
+                this.canvasHeight = rect.height;
             }
 
             enableAdminMode() {
                 this.isAdminMode = true;
-                document.body.classList.add('admin-mode');
-                document.body.classList.remove('viewer-mode');
-                this.setupEventListeners();
                 this.updateConnectionsList();
             }
 
             enableViewMode() {
                 this.isAdminMode = false;
-                document.body.classList.add('viewer-mode');
-                document.body.classList.remove('admin-mode');
-                this.removeEventListeners();
                 this.updateConnectionsList();
             }
 
             setupEventListeners() {
-                this.onMouseDown = this.onMouseDown.bind(this);
-                this.onMouseMove = this.onMouseMove.bind(this);
-                this.onMouseUp = this.onMouseUp.bind(this);
+                // Mouse events
+                this.canvas.addEventListener('mousedown', this.onMouseDown.bind(this));
+                this.canvas.addEventListener('mousemove', this.onMouseMove.bind(this));
+                this.canvas.addEventListener('mouseup', this.onMouseUp.bind(this));
+                this.canvas.addEventListener('mouseleave', this.onMouseUp.bind(this));
+                this.canvas.addEventListener('wheel', this.onWheel.bind(this));
+                this.canvas.addEventListener('contextmenu', this.onRightClick.bind(this));
 
-                this.canvas.addEventListener('mousedown', this.onMouseDown);
-                this.canvas.addEventListener('mousemove', this.onMouseMove);
-                this.canvas.addEventListener('mouseup', this.onMouseUp);
-                this.canvas.addEventListener('mouseleave', this.onMouseUp);
+                // Touch events
+                this.canvas.addEventListener('touchstart', this.onTouchStart.bind(this));
+                this.canvas.addEventListener('touchmove', this.onTouchMove.bind(this));
+                this.canvas.addEventListener('touchend', this.onTouchEnd.bind(this));
 
+                // Resize
                 window.addEventListener('resize', () => {
-                    setTimeout(() => this.setupCanvas(), 100);
+                    setTimeout(() => this.resizeCanvas(), 100);
                 });
+
+                // Fullscreen change
+                document.addEventListener('fullscreenchange', this.onFullscreenChange.bind(this));
             }
 
-            removeEventListeners() {
-                this.canvas.removeEventListener('mousedown', this.onMouseDown);
-                this.canvas.removeEventListener('mousemove', this.onMouseMove);
-                this.canvas.removeEventListener('mouseup', this.onMouseUp);
-                this.canvas.removeEventListener('mouseleave', this.onMouseUp);
+            // Conversión de coordenadas con zoom y pan
+            screenToWorld(screenX, screenY) {
+                return {
+                    x: (screenX - this.panX) / this.zoom,
+                    y: (screenY - this.panY) / this.zoom
+                };
             }
 
+            worldToScreen(worldX, worldY) {
+                return {
+                    x: worldX * this.zoom + this.panX,
+                    y: worldY * this.zoom + this.panY
+                };
+            }
+
+            // Eventos de mouse
             onMouseDown(e) {
-                if (!this.isAdminMode) return;
-
                 const rect = this.canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
+                const screenX = e.clientX - rect.left;
+                const screenY = e.clientY - rect.top;
+                const worldPos = this.screenToWorld(screenX, screenY);
                 
+                // Buscar nodo bajo el cursor
+                let nodeFound = false;
                 for (let [name, node] of this.nodes) {
-                    const dx = x - node.x;
-                    const dy = y - node.y;
+                    const dx = worldPos.x - node.x;
+                    const dy = worldPos.y - node.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
                     
                     if (distance < node.radius) {
                         this.isDragging = true;
                         this.dragNode = node;
-                        this.mousePos = { x, y };
+                        nodeFound = true;
                         break;
                     }
+                }
+                
+                // Si no se encontró nodo, iniciar pan
+                if (!nodeFound) {
+                    this.isPanning = true;
+                    this.lastPanPoint = { x: screenX, y: screenY };
                 }
             }
 
             onMouseMove(e) {
-                if (!this.isAdminMode || !this.isDragging || !this.dragNode) return;
-
                 const rect = this.canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
+                const screenX = e.clientX - rect.left;
+                const screenY = e.clientY - rect.top;
                 
-                this.dragNode.x = Math.max(this.dragNode.radius, 
-                                          Math.min(rect.width - this.dragNode.radius, x));
-                this.dragNode.y = Math.max(this.dragNode.radius, 
-                                          Math.min(rect.height - this.dragNode.radius, y));
+                if (this.isDragging && this.dragNode) {
+                    const worldPos = this.screenToWorld(screenX, screenY);
+                    this.dragNode.x = worldPos.x;
+                    this.dragNode.y = worldPos.y;
+                } else if (this.isPanning) {
+                    const dx = screenX - this.lastPanPoint.x;
+                    const dy = screenY - this.lastPanPoint.y;
+                    this.panX += dx;
+                    this.panY += dy;
+                    this.lastPanPoint = { x: screenX, y: screenY };
+                }
             }
 
             onMouseUp() {
                 this.isDragging = false;
                 this.dragNode = null;
+                this.isPanning = false;
             }
-            
+
+            onWheel(e) {
+                e.preventDefault();
+                const rect = this.canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                
+                const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+                this.zoomAt(mouseX, mouseY, zoomFactor);
+            }
+
+            onRightClick(e) {
+                e.preventDefault();
+                this.resetZoom();
+            }
+
+            // Eventos táctiles
+            onTouchStart(e) {
+                e.preventDefault();
+                const rect = this.canvas.getBoundingClientRect();
+                
+                if (e.touches.length === 1) {
+                    // Un dedo: arrastrar nodo o pan
+                    const touch = e.touches[0];
+                    const screenX = touch.clientX - rect.left;
+                    const screenY = touch.clientY - rect.top;
+                    const worldPos = this.screenToWorld(screenX, screenY);
+                    
+                    let nodeFound = false;
+                    for (let [name, node] of this.nodes) {
+                        const dx = worldPos.x - node.x;
+                        const dy = worldPos.y - node.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance < node.radius) {
+                            this.isDragging = true;
+                            this.dragNode = node;
+                            nodeFound = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!nodeFound) {
+                        this.isPanning = true;
+                        this.lastPanPoint = { x: screenX, y: screenY };
+                    }
+                } else if (e.touches.length === 2) {
+                    // Dos dedos: zoom con pellizco
+                    const touch1 = e.touches[0];
+                    const touch2 = e.touches[1];
+                    const dx = touch1.clientX - touch2.clientX;
+                    const dy = touch1.clientY - touch2.clientY;
+                    this.lastTouchDistance = Math.sqrt(dx * dx + dy * dy);
+                }
+            }
+
+            onTouchMove(e) {
+                e.preventDefault();
+                const rect = this.canvas.getBoundingClientRect();
+                
+                if (e.touches.length === 1) {
+                    const touch = e.touches[0];
+                    const screenX = touch.clientX - rect.left;
+                    const screenY = touch.clientY - rect.top;
+                    
+                    if (this.isDragging && this.dragNode) {
+                        const worldPos = this.screenToWorld(screenX, screenY);
+                        this.dragNode.x = worldPos.x;
+                        this.dragNode.y = worldPos.y;
+                    } else if (this.isPanning) {
+                        const dx = screenX - this.lastPanPoint.x;
+                        const dy = screenY - this.lastPanPoint.y;
+                        this.panX += dx;
+                        this.panY += dy;
+                        this.lastPanPoint = { x: screenX, y: screenY };
+                    }
+                } else if (e.touches.length === 2) {
+                    const touch1 = e.touches[0];
+                    const touch2 = e.touches[1];
+                    const dx = touch1.clientX - touch2.clientX;
+                    const dy = touch1.clientY - touch2.clientY;
+                    const currentDistance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (this.lastTouchDistance > 0) {
+                        const centerX = (touch1.clientX + touch2.clientX) / 2 - rect.left;
+                        const centerY = (touch1.clientY + touch2.clientY) / 2 - rect.top;
+                        const zoomFactor = currentDistance / this.lastTouchDistance;
+                        this.zoomAt(centerX, centerY, zoomFactor);
+                    }
+                    
+                    this.lastTouchDistance = currentDistance;
+                }
+            }
+
+            onTouchEnd(e) {
+                e.preventDefault();
+                if (e.touches.length === 0) {
+                    this.isDragging = false;
+                    this.dragNode = null;
+                    this.isPanning = false;
+                    this.lastTouchDistance = 0;
+                }
+            }
+
+            // Funciones de zoom
+            zoomAt(x, y, factor) {
+                const newZoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoom * factor));
+                
+                if (newZoom !== this.zoom) {
+                    const zoomChange = newZoom / this.zoom;
+                    this.panX = x - (x - this.panX) * zoomChange;
+                    this.panY = y - (y - this.panY) * zoomChange;
+                    this.zoom = newZoom;
+                    this.updateZoomDisplay();
+                }
+            }
+
+            zoomIn() {
+                const centerX = this.canvasWidth / 2;
+                const centerY = this.canvasHeight / 2;
+                this.zoomAt(centerX, centerY, 1.2);
+            }
+
+            zoomOut() {
+                const centerX = this.canvasWidth / 2;
+                const centerY = this.canvasHeight / 2;
+                this.zoomAt(centerX, centerY, 0.8);
+            }
+
+            resetZoom() {
+                this.zoom = 1;
+                this.panX = 0;
+                this.panY = 0;
+                this.updateZoomDisplay();
+            }
+
+            updateZoomDisplay() {
+                const percentage = Math.round(this.zoom * 100);
+                document.getElementById('zoomInfo').textContent = percentage + '%';
+                const fullscreenZoom = document.getElementById('fullscreenZoomInfo');
+                if (fullscreenZoom) {
+                    fullscreenZoom.textContent = percentage + '%';
+                }
+            }
+
+            onFullscreenChange() {
+                if (!document.fullscreenElement) {
+                    this.exitFullscreen();
+                }
+            }
+
             async addConnection(person1, person2) {
                 person1 = person1.trim().toLowerCase();
                 person2 = person2.trim().toLowerCase();
@@ -603,11 +931,10 @@
 
             getOrCreateNode(name) {
                 if (!this.nodes.has(name)) {
-                    const rect = this.canvas.getBoundingClientRect();
                     const node = {
                         name: name,
-                        x: Math.random() * (rect.width - 100) + 50,
-                        y: Math.random() * (rect.height - 100) + 50,
+                        x: (Math.random() - 0.5) * 300 + this.canvasWidth / 2,
+                        y: (Math.random() - 0.5) * 300 + this.canvasHeight / 2,
                         radius: 20,
                         connections: 0,
                         color: this.getRandomColor(),
@@ -634,11 +961,15 @@
             }
 
             draw() {
-                const rect = this.canvas.getBoundingClientRect();
-                this.ctx.clearRect(0, 0, rect.width, rect.height);
+                this.ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
+                
+                this.ctx.save();
+                this.ctx.translate(this.panX, this.panY);
+                this.ctx.scale(this.zoom, this.zoom);
 
+                // Dibujar conexiones
                 this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-                this.ctx.lineWidth = 2;
+                this.ctx.lineWidth = 2 / this.zoom;
                 
                 for (let edge of this.edges) {
                     const nodeFrom = this.nodes.get(edge.from);
@@ -652,38 +983,46 @@
                     }
                 }
 
+                // Dibujar nodos
                 for (let [name, node] of this.nodes) {
+                    // Sombra
                     this.ctx.beginPath();
                     this.ctx.arc(node.x + 2, node.y + 2, node.radius, 0, 2 * Math.PI);
                     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
                     this.ctx.fill();
 
+                    // Nodo principal
                     this.ctx.beginPath();
                     this.ctx.arc(node.x, node.y, node.radius, 0, 2 * Math.PI);
                     this.ctx.fillStyle = node.color;
                     this.ctx.fill();
                     
+                    // Borde del nodo
                     this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-                    this.ctx.lineWidth = 2;
+                    this.ctx.lineWidth = 2 / this.zoom;
                     this.ctx.stroke();
 
+                    // Texto del nombre
                     this.ctx.fillStyle = 'white';
-                    this.ctx.font = 'bold 12px Arial';
+                    this.ctx.font = `bold ${12 / this.zoom}px Arial`;
                     this.ctx.textAlign = 'center';
                     this.ctx.textBaseline = 'middle';
                     this.ctx.fillText(name, node.x, node.y);
 
+                    // Número de conexiones
                     if (node.connections > 0) {
                         this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-                        this.ctx.font = 'bold 10px Arial';
+                        this.ctx.font = `bold ${10 / this.zoom}px Arial`;
                         this.ctx.fillText(node.connections.toString(), node.x, node.y + node.radius + 15);
                     }
                 }
+
+                this.ctx.restore();
             }
 
             animate() {
                 this.draw();
-                this.animationId = requestAnimationFrame(() => this.animate());
+                requestAnimationFrame(() => this.animate());
             }
 
             updateStats() {
@@ -817,6 +1156,47 @@
             document.getElementById('loginScreen').classList.remove('hidden');
             document.getElementById('mainScreen').classList.add('hidden');
             document.getElementById('adminPassword').focus();
+            
+            // Salir de pantalla completa si está activa
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            }
+        }
+
+        function toggleFullscreen() {
+            const container = document.getElementById('networkContainer');
+            const controls = document.getElementById('fullscreenControls');
+            const zoomControls = document.getElementById('fullscreenZoomControls');
+            
+            if (!document.fullscreenElement) {
+                // Entrar a pantalla completa
+                container.requestFullscreen().then(() => {
+                    container.classList.add('fullscreen-mode');
+                    controls.classList.remove('hidden');
+                    zoomControls.classList.remove('hidden');
+                    networkManager.isFullscreen = true;
+                    setTimeout(() => networkManager.resizeCanvas(), 100);
+                }).catch(err => {
+                    console.error('Error al entrar en pantalla completa:', err);
+                });
+            } else {
+                // Salir de pantalla completa
+                document.exitFullscreen();
+            }
+        }
+
+        function exitFullscreen() {
+            const container = document.getElementById('networkContainer');
+            const controls = document.getElementById('fullscreenControls');
+            const zoomControls = document.getElementById('fullscreenZoomControls');
+            
+            container.classList.remove('fullscreen-mode');
+            controls.classList.add('hidden');
+            zoomControls.classList.add('hidden');
+            if (networkManager) {
+                networkManager.isFullscreen = false;
+                setTimeout(() => networkManager.resizeCanvas(), 100);
+            }
         }
 
         async function addConnection() {
@@ -857,6 +1237,23 @@
                     addConnection();
                 }
             });
+
+            // Prevenir zoom del navegador en dispositivos móviles
+            document.addEventListener('touchmove', function(e) {
+                if (e.scale !== 1) { 
+                    e.preventDefault(); 
+                }
+            }, { passive: false });
+            
+            // Prevenir zoom con doble toque
+            let lastTouchEnd = 0;
+            document.addEventListener('touchend', function (event) {
+                const now = (new Date()).getTime();
+                if (now - lastTouchEnd <= 300) {
+                    event.preventDefault();
+                }
+                lastTouchEnd = now;
+            }, false);
         });
     </script>
 </body>
