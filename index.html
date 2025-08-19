@@ -1168,20 +1168,27 @@
             const controls = document.getElementById('fullscreenControls');
             const zoomControls = document.getElementById('fullscreenZoomControls');
             
-            if (!document.fullscreenElement) {
+            if (!networkManager.isFullscreen) {
                 // Entrar a pantalla completa
-                container.requestFullscreen().then(() => {
-                    container.classList.add('fullscreen-mode');
-                    controls.classList.remove('hidden');
-                    zoomControls.classList.remove('hidden');
-                    networkManager.isFullscreen = true;
-                    setTimeout(() => networkManager.resizeCanvas(), 100);
-                }).catch(err => {
-                    console.error('Error al entrar en pantalla completa:', err);
-                });
+                if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen();
+                } else if (document.documentElement.webkitRequestFullscreen) {
+                    document.documentElement.webkitRequestFullscreen();
+                } else if (document.documentElement.msRequestFullscreen) {
+                    document.documentElement.msRequestFullscreen();
+                }
+                
+                container.classList.add('fullscreen-mode');
+                controls.classList.remove('hidden');
+                zoomControls.classList.remove('hidden');
+                networkManager.isFullscreen = true;
+                
+                setTimeout(() => {
+                    networkManager.resizeCanvas();
+                    networkManager.centerNetwork();
+                }, 200);
             } else {
-                // Salir de pantalla completa
-                document.exitFullscreen();
+                exitFullscreen();
             }
         }
 
@@ -1190,12 +1197,24 @@
             const controls = document.getElementById('fullscreenControls');
             const zoomControls = document.getElementById('fullscreenZoomControls');
             
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen();
+            }
+            
             container.classList.remove('fullscreen-mode');
             controls.classList.add('hidden');
             zoomControls.classList.add('hidden');
+            
             if (networkManager) {
                 networkManager.isFullscreen = false;
-                setTimeout(() => networkManager.resizeCanvas(), 100);
+                setTimeout(() => {
+                    networkManager.resizeCanvas();
+                    networkManager.centerNetwork();
+                }, 200);
             }
         }
 
