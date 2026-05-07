@@ -54,7 +54,7 @@
         <button onclick="addConnection()">Añadir Conexión</button>
     </div>
     <div id="search-container" style="margin-bottom: 20px; display: flex; gap: 10px;">
-        <input type="text" id="searchInput" placeholder="Buscar nombre en el grafo..." onkeyup="searchNode()">
+        <input type="text" id="searchInput" placeholder="Buscar nombre" onkeyup="searchNode()">
         <button onclick="clearSearch()" style="background: #64748b;">Limpiar</button>
     </div>
 
@@ -114,23 +114,6 @@
                     }
                 }
             ]
-            // 2. AQUÍ PEGAS EL SEGUNDO CÓDIGO (Layout)
-            layout: {
-                name: 'cose',
-                animate: false, // Esto evita que las bolas se muevan solas al buscar
-                fit: true,
-                padding: 30,
-                randomize: false,
-                componentSpacing: 100,
-                nodeRepulsion: 400000,
-                edgeElasticity: 100,
-                nestingFactor: 5,
-                gravity: 80,
-                numIter: 1000,
-                initialTemp: 200,
-                coolingFactor: 0.95,
-                minTemp: 1.0
-            }
         });
 
 
@@ -229,38 +212,40 @@
             if (data && data.nodes) {
                 cy.add(data);
                 updateNodeSizes();
-                cy.layout({ name: 'cose', animate: true }).run();
+                cy.layout({ name: 'cose' }).run();
             }
         }
-
+        
         function searchNode() {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
             
+            // Si no hay nada escrito, limpiamos el filtro
             if (searchTerm === "") {
                 clearSearch();
                 return;
             }
 
+            // Buscamos el nodo cuyo ID contenga el texto buscado
             const targetNode = cy.nodes().filter(node => {
                 return node.id().toLowerCase().includes(searchTerm);
             });
 
             if (targetNode.length > 0) {
-                // Ejecutamos cambios de estilo por lotes para mejorar el rendimiento
-                cy.batch(() => {
-                    cy.elements().removeClass('highlighted').removeClass('faded');
-                    
-                    const neighborhood = targetNode.neighborhood().add(targetNode);
-                    cy.elements().difference(neighborhood).addClass('faded');
-                    neighborhood.addClass('highlighted');
-                });
+                // Quitamos clases anteriores
+                cy.elements().removeClass('highlighted').removeClass('faded');
 
-                // Animación de cámara optimizada (más lenta y fluida)
+                // Ponemos en "faded" (transparente) todo lo que NO sea el nodo o sus vecinos
+                const neighborhood = targetNode.neighborhood().add(targetNode);
+                cy.elements().difference(neighborhood).addClass('faded');
+                
+                // Resaltamos el nodo y sus conexiones directas
+                neighborhood.addClass('highlighted');
+
+                // Centramos la cámara en el nodo encontrado con una animación suave
                 cy.animate({
                     center: { eles: targetNode },
-                    zoom: 1.2, // Zoom menos agresivo para no perder contexto
-                    duration: 800, // Un poco más de tiempo para que sea suave
-                    easing: 'ease-in-out-cubic' // Curva de aceleración suave
+                    zoom: 1.5,
+                    duration: 500
                 });
             }
         }
