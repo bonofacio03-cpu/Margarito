@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Margarito - Visualizador</title>
+    <style>
+        body { background: #0f172a; color: #f1f5f9; font-family: 'Inter', sans-serif; margin: 0; padding: 20px; }
+        
+        /* Panel de control: solo visible para el admin */
+        #admin-panel { 
+            display: none; gap: 10px; margin-bottom: 20px; padding: 20px; 
+            background: #1e293b; border-radius: 12px; border: 1px solid #334155;
+        }
+
+        input { padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; flex: 1; }
+        button { padding: 12px 24px; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+        button:hover { background: #2563eb; }
+
+        #cy { width: 100%; height: calc(100vh - 150px); background: #0f172a; border-radius: 16px; border: 1px solid #1e293b; }
+        
+        .mode-indicator { position: absolute; top: 20px; right: 20px; padding: 8px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; background: rgba(30, 41, 59, 0.8); }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
+</head>
+<body>
+
+    <div id="admin-panel">
+        <input type="text" id="nodeA" placeholder="Presa">
+        <input type="text" id="nodeB" placeholder="Depredador">
+        <button onclick="addConnection()">Añadir Conexión</button>
+    </div>
+
+    <div class="mode-indicator" id="status-tag">Modo Invitado</div>
+    <div id="cy"></div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const isAdmin = urlParams.get('admin') === 'true' && sessionStorage.getItem('margarito_token') !== null;
+
+        if (isAdmin) {
+            document.getElementById('admin-panel').style.display = 'flex';
+            document.getElementById('status-tag').innerText = "ADMINISTRADOR";
+            document.getElementById('status-tag').style.color = "#4ade80";
+        }
+
+        function stringToColor(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            return `hsl(${hash % 360}, 70%, 60%)`;
+        }
+
+        let cy = cytoscape({
+            container: document.getElementById('cy'),
+            style: [
+                {
+                    selector: 'node',
+                    style: {
+                        'background-color': ele => stringToColor(ele.id()),
+                        'label': 'data(id)',
+                        'color': '#fff',
+                        'text-valign': 'center',
+                        'text-outline-width': 2,
+                        'text-outline-color': '#0f172a',
+                        'width': 'mapData(degree, 0, 10, 40, 120)',
+                        'height': 'mapData(degree, 0, 10, 40, 120)',
+                        'font-size': '14px'
+                    }
+                },
+                {
+                    selector: 'edge',
+                    style: {
+                        'width': 4,
+                        'line-color': '#475569',
+                        'curve-style': 'bezier',
+                        'opacity': 0.6
+                    }
+                },
+                {
+                    selector: 'edge:selected',
+                    style: {
+                        'line-color': '#ef4444',
+                        'width': 6,
+                        'opacity': 1
+                    }
+                }
+            ]
+        });
+
+
+        // --- LÓGICA DE ELIMINACIÓN REFORZADA (SOLO ADMIN) ---
+        if (isAdmin) {
+            // Función mejorada para limpiar nodos sin conexiones
+            function cleanOrphans() {
+                // Buscamos todos los nodos que tengan 0 líneas conectadas
+                const orphans = cy.nodes().filter(node => node.connectedEdges().length === 0);
+                if (orphans.length > 0) {
+                    orphans.remove();
+                }
+            }
+
+            // 1. Borrado con Teclado (Suprimir/Backspace)
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Delete' || e.key === 'Backspace') {
+                    const selected = cy.$(':selected');
+                    if (selected.length > 0) {
+                        if (confirm("¿Eliminar elementos seleccionados?")) {
+                            selected.remove();
+                            // Limpiamos después de borrar
+                            cleanOrphans();
+                            updateNodeSizes();
+                            saveData();
+                        }
+                    }
+                }
+            });
+
+            // 2. Borrado con Doble Click en la conexión
+            cy.on('dblclick', 'edge', function(evt){
+                const edge = evt.target;
+                if (confirm("¿Eliminar esta conexión?")) {
+                    edge.remove();
+                    // Limpiamos después de borrar la línea
+                    cleanOrphans();
+                    updateNodeSizes();
+                    saveData();
+                }
+            });
+        }
+
+        function updateNodeSizes() {
+            cy.nodes().forEach(node => {
+                node.data('degree', node.degree());
+            });
+        }
+
+        async function addConnection() {
+            if (!isAdmin) return;
+            const a = document.getElementById('nodeA').value.trim();
+            const b = document.getElementById('nodeB').value.trim();
+            if (!a || !b || a === b) return;
+
+            if (cy.getElementById(a).empty()) cy.add({ group: 'nodes', data: { id: a } });
+            if (cy.getElementById(b).empty()) cy.add({ group: 'nodes', data: { id: b } });
+            
+            const exists = cy.edges().filter(e => 
+                (e.source().id() === a && e.target().id() === b) || 
+                (e.source().id() === b && e.target().id() === a)
+            ).length > 0;
+
+            if (!exists) {
+                cy.add({ group: 'edges', data: { source: a, target: b } });
+                updateNodeSizes();
+                cy.layout({ name: 'cose', animate: true }).run();
+                saveData();
+            }
+            document.getElementById('nodeA').value = "";
+            document.getElementById('nodeB').value = "";
+        }
+
+        async function saveData() {
+            const elements = cy.json().elements;
+            const token = sessionStorage.getItem('margarito_token');
+
+            const response = await fetch('/api/graph', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': token // Envíamos la llave secreta
+                },
+                body: JSON.stringify(elements)
+            });
+
+            if (!response.ok) {
+                alert("Error de seguridad: No tienes permiso para guardar.");
+                window.location.href = "/"; // Expulsado por intentar hackear
+            }
+        }
+
+        async function loadData() {
+            const res = await fetch('/api/graph');
+            const data = await res.json();
+            if (data && data.nodes) {
+                cy.add(data);
+                updateNodeSizes();
+                cy.layout({ name: 'cose' }).run();
+            }
+        }
+
+        loadData();
+    </script>
+</body>
+</html>

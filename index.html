@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Margarito - Inicio</title>
+    <style>
+        body { 
+            background: #0f172a; color: white; 
+            font-family: 'Inter', sans-serif; 
+            display: flex; justify-content: center; align-items: center; 
+            height: 100vh; margin: 0; 
+        }
+        .container { text-align: center; max-width: 600px; }
+        h1 { font-size: 4rem; margin-bottom: 10px; color: #3b82f6; letter-spacing: -2px; }
+        p { color: #94a3b8; margin-bottom: 40px; }
+        .cards { display: flex; gap: 20px; justify-content: center; }
+        .card { 
+            background: #1e293b; padding: 30px; border-radius: 16px; 
+            border: 1px solid #334155; cursor: pointer; transition: 0.3s; width: 200px;
+        }
+        .card:hover { transform: translateY(-10px); border-color: #3b82f6; background: #263349; }
+        .card h2 { margin-top: 0; font-size: 1.5rem; }
+        .card p { font-size: 0.9rem; margin-bottom: 0; }
+        .admin-btn { background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 6px; margin-top: 15px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Deep Margarito</h1>
+        <p>San Agus</p>
+        
+        <div class="cards">
+            <div class="card" onclick="window.location.href='/grafo.html'">
+                <h2>Invitado</h2>
+            </div>
+
+            <div class="card">
+                <h2>Admin</h2>
+                <button class="admin-btn" onclick="accesoAdmin()">Entrar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function accesoAdmin() {
+            const pass = prompt("Introduce la contraseña:");
+            const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: pass })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+            // Guardamos el TOKEN real, no solo un "true"
+                sessionStorage.setItem('margarito_token', result.token);
+                window.location.href = "/grafo.html?admin=true";
+            } else {
+                alert("Clave incorrecta");
+            }
+        }
+    </script>
+</body>
+</html>
