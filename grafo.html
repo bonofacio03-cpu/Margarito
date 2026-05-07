@@ -11,6 +11,29 @@
             display: none; gap: 10px; margin-bottom: 20px; padding: 20px; 
             background: #1e293b; border-radius: 12px; border: 1px solid #334155;
         }
+        /* Estilo para el buscador */
+        #search-container {
+            background: #1e293b;
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid #334155;
+        }
+
+        /* Clase de resaltado que aplicaremos por JS */
+        .highlighted {
+            border-width: 6px;
+            border-color: #f59e0b !important; /* Dorado */
+            line-color: #f59e0b !important;
+            target-arrow-color: #f59e0b !important;
+            font-size: 20px;
+            font-weight: bold;
+            z-index: 9999;
+        }
+
+        .faded {
+            opacity: 0.1;
+            events: no;
+        }
 
         input { padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; flex: 1; }
         button { padding: 12px 24px; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
@@ -19,6 +42,7 @@
         #cy { width: 100%; height: calc(100vh - 150px); background: #0f172a; border-radius: 16px; border: 1px solid #1e293b; }
         
         .mode-indicator { position: absolute; top: 20px; right: 20px; padding: 8px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; background: rgba(30, 41, 59, 0.8); }
+
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
 </head>
@@ -28,6 +52,10 @@
         <input type="text" id="nodeA" placeholder="Presa">
         <input type="text" id="nodeB" placeholder="Depredador">
         <button onclick="addConnection()">Añadir Conexión</button>
+    </div>
+    <div id="search-container" style="margin-bottom: 20px; display: flex; gap: 10px;">
+        <input type="text" id="searchInput" placeholder="Buscar nombre en el grafo..." onkeyup="searchNode()">
+        <button onclick="clearSearch()" style="background: #64748b;">Limpiar</button>
     </div>
 
     <div class="mode-indicator" id="status-tag">Modo Invitado</div>
@@ -186,6 +214,49 @@
                 updateNodeSizes();
                 cy.layout({ name: 'cose' }).run();
             }
+        }
+        
+        function searchNode() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            
+            // Si no hay nada escrito, limpiamos el filtro
+            if (searchTerm === "") {
+                clearSearch();
+                return;
+            }
+
+            // Buscamos el nodo cuyo ID contenga el texto buscado
+            const targetNode = cy.nodes().filter(node => {
+                return node.id().toLowerCase().includes(searchTerm);
+            });
+
+            if (targetNode.length > 0) {
+                // Quitamos clases anteriores
+                cy.elements().removeClass('highlighted').removeClass('faded');
+
+                // Ponemos en "faded" (transparente) todo lo que NO sea el nodo o sus vecinos
+                const neighborhood = targetNode.neighborhood().add(targetNode);
+                cy.elements().difference(neighborhood).addClass('faded');
+                
+                // Resaltamos el nodo y sus conexiones directas
+                neighborhood.addClass('highlighted');
+
+                // Centramos la cámara en el nodo encontrado con una animación suave
+                cy.animate({
+                    center: { eles: targetNode },
+                    zoom: 1.5,
+                    duration: 500
+                });
+            }
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = "";
+            cy.elements().removeClass('highlighted').removeClass('faded');
+            cy.animate({
+                fit: { eles: cy.elements(), padding: 50 },
+                duration: 500
+            });
         }
 
         loadData();
