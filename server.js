@@ -32,23 +32,16 @@ app.get('/api/graph', (req, res) => {
 });
 
 // Guardar datos (AHORA PROTEGIDO)
-// Guardar datos (PROTEGIDO)
 app.post('/api/graph', (req, res) => {
+    // --- CAMBIO 3: Validación del Token ---
     const userToken = req.headers['authorization'];
     
     if (!currentAdminToken || userToken !== currentAdminToken) {
         return res.status(403).json({ success: false, message: "No autorizado" });
     }
 
-    // REVISIÓN: Extraemos solo la parte de los elementos si vienen envueltos
-    const dataToSave = req.body.elements ? req.body.elements : req.body;
-
-    try {
-        fs.writeFileSync(DATA_FILE, JSON.stringify(dataToSave, null, 2));
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Error al escribir en disco" });
-    }
+    fs.writeFileSync(DATA_FILE, JSON.stringify(req.body, null, 2));
+    res.json({ success: true });
 });
 
 app.listen(PORT, () => {
