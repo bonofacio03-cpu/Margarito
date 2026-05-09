@@ -118,41 +118,35 @@
 
 
         // --- LÓGICA DE ELIMINACIÓN REFORZADA (SOLO ADMIN) ---
-        if (isAdmin) {
-            // Función mejorada para limpiar nodos sin conexiones
-            function cleanOrphans() {
-                // Buscamos todos los nodos que tengan 0 líneas conectadas
-                const orphans = cy.nodes().filter(node => node.connectedEdges().length === 0);
-                if (orphans.length > 0) {
-                    orphans.remove();
-                }
-            }
 
-            // 1. Borrado con Teclado (Suprimir/Backspace)
-            document.addEventListener('keydown', function(e) {
+            function cleanOrphans() {
+                const orphans = cy.nodes().filter(node => node.connectedEdges().length === 0);
+                if (orphans.length > 0) orphans.remove();
+            }
+        
+            // 1. Borrado con Teclado
+            document.addEventListener('keydown', async function(e) {
                 if (e.key === 'Delete' || e.key === 'Backspace') {
                     const selected = cy.$(':selected');
                     if (selected.length > 0) {
-                        if (confirm("¿Eliminar elementos seleccionados?")) {
+                        if (confirm("¿Eliminar elementos seleccionados permanentemente?")) {
                             selected.remove();
-                            // Limpiamos después de borrar
                             cleanOrphans();
                             updateNodeSizes();
-                            saveData();
+                            await saveData(); // <--- IMPORTANTE: Esperar a que guarde
+                            console.log("Cambios guardados en el servidor");
                         }
                     }
                 }
             });
-
-            // 2. Borrado con Doble Click en la conexión
-            cy.on('dblclick', 'edge', function(evt){
-                const edge = evt.target;
-                if (confirm("¿Eliminar esta conexión?")) {
-                    edge.remove();
-                    // Limpiamos después de borrar la línea
+        
+            // 2. Borrado con Doble Click
+            cy.on('dblclick', 'edge', async function(evt){
+                if (confirm("¿Eliminar esta conexión permanentemente?")) {
+                    evt.target.remove();
                     cleanOrphans();
                     updateNodeSizes();
-                    saveData();
+                    await saveData(); // <--- IMPORTANTE: Esperar a que guarde
                 }
             });
         }
