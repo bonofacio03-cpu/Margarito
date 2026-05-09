@@ -188,17 +188,27 @@
         }
 
         async function saveData() {
-            const elements = cy.json().elements;
+            // IMPORTANTE: Obtenemos el JSON actual del grafo
+            const graphData = cy.json().elements; 
             const token = sessionStorage.getItem('margarito_token');
-
+        
+            if (!token) return;
+        
             const response = await fetch('/api/graph', {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'Authorization': token // Envíamos la llave secreta
+                    'Authorization': token 
                 },
-                body: JSON.stringify(elements)
+                body: JSON.stringify(graphData) // Enviamos el objeto directo
             });
+        
+            if (response.ok) {
+                console.log("Cambios guardados en data.json");
+            } else {
+                alert("Error al guardar. ¿Sesión expirada?");
+            }
+        }
 
             if (!response.ok) {
                 alert("Error de seguridad: No tienes permiso para guardar.");
