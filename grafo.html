@@ -186,24 +186,19 @@
             document.getElementById('nodeA').value = "";
             document.getElementById('nodeB').value = "";
         }
-        
+
         async function saveData() {
-            // IMPORTANTE: Extraemos solo los elementos (nodos y aristas)
-            const elements = cy.elements().jsons(); 
+            const elements = cy.json().elements;
             const token = sessionStorage.getItem('margarito_token');
-        
+
             const response = await fetch('/api/graph', {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'Authorization': token 
+                    'Authorization': token // Envíamos la llave secreta
                 },
-                // Enviamos un array plano de elementos
-                body: JSON.stringify(elements) 
+                body: JSON.stringify(elements)
             });
-        
-            if (!response.ok) alert("Error al guardar");
-        }
 
             if (!response.ok) {
                 alert("Error de seguridad: No tienes permiso para guardar.");
