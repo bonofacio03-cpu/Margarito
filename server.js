@@ -33,16 +33,29 @@ app.get('/api/graph', (req, res) => {
 
 // Guardar datos (AHORA PROTEGIDO)
 app.post('/api/graph', (req, res) => {
-    // --- CAMBIO 3: Validación del Token ---
-    const userToken = req.headers['authorization'];
+    const token = req.headers['authorization'];
     
-    if (!currentAdminToken || userToken !== currentAdminToken) {
-        return res.status(403).json({ success: false, message: "No autorizado" });
+    // Verifica que el token sea el correcto
+    if (token !== currentAdminToken) {
+        return res.status(403).send("No autorizado");
     }
 
-    fs.writeFileSync(DATA_FILE, JSON.stringify(req.body, null, 2));
-    res.json({ success: true });
-});
+    const newData = req.body; // Aquí llega el nuevo estado del grafo sin los elementos borrados
+
+    // Sobrescribimos el archivo JSON con los nuevos datos
+    fs.writeFile(path.join(__dirname, 'data.json'), JSON.stringify(newData, null, 2), (err) => {
+        if (err) {
+            console.error("Error al guardar:", err);
+            return res.status(500).send("Error al guardar en el servidor");
+        }
+        console.log("Grafo actualizado permanentemente en data.json");
+        
+        // OPCIONAL: Aquí es donde también puedes actualizar el Excel si quieres
+        updateExcel(newData); 
+
+        res.send({ success: true });
+    });
+});/
 
 app.listen(PORT, () => {
     console.log(`Servidor Margarito corriendo en http://localhost:${PORT}`);
