@@ -1,60 +1,69 @@
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const app = express();
-const PORT = 3000;
-const DATA_FILE = path.join(__dirname, 'data.json');
+/**
+ * server.js — Servidor principal de Margarito
+ *
+ * Qué hace:
+ *   - Sirve los archivos estáticos (index.html, grafo.html, style.css)
+ *   - Expone tres rutas REST:
+ *       POST /api/login   → valida contraseña y devuelve un token de sesión
+ *       GET  /api/graph   → devuelve el grafo guardado en data.json (público)
+ *       POST /api/graph   → sobreescribe data.json (requiere token válido)
+ *
+ * Seguridad:
+ *   El token se genera en memoria al hacer login. Si el servidor se reinicia,
+ *   el token se invalida automáticamente. No se usa ninguna librería JWT externa.
+ */
 
-// --- CAMBIO 1: Configuración de seguridad ---
-const ADMIN_PASSWORD = "margarito123"; 
-let currentAdminToken = null; // Aquí se guardará la "llave" temporal
+const express = require('express');
+const fs      = require('fs');
+const path    = require('path');
+
+const app  = express();
+const PORT = 3000;
+
+const DATA_FILE     = path.join(__dirname, 'data.json');
+const ADMIN_PASSWORD = 'margarito123'; // Cambia esto en producción
+
+// Token activo en memoria. null = nadie ha iniciado sesión.
+let currentAdminToken = null;
 
 app.use(express.json());
 app.use(express.static(__dirname));
 
-// --- CAMBIO 2: Nueva ruta para el Login ---
+// ── POST /api/login ─────────────────────────────────────────────────────────
+// Recibe { password }. Si es correcta, genera y devuelve un token único.
 app.post('/api/login', (req, res) => {
     const { password } = req.body;
-    if (password === ADMIN_PASSWORD) {
-        // Generamos un token único para esta sesión
-        currentAdminToken = Math.random().toString(36).substring(2) + Date.now();
-        res.json({ success: true, token: currentAdminToken });
-    } else {
-        res.status(401).json({ success: false, message: "Password incorrecto" });
+
+    if (password !== ADMIN_PASSWORD) {
+        return res.status(401).json({ success: false, message: 'Contraseña incorrecta' });
     }
+
+    // Token simple: string aleatorio + timestamp para evitar colisiones
+    currentAdminToken = Math.random().toString(36).substring(2) + Date.now();
+    res.json({ success: true, token: currentAdminToken });
 });
 
-// Leer datos (Sigue siendo público para que todos vean el grafo)
+// ── GET /api/graph ───────────────────────────────────────────────────────────
+// Devuelve el grafo completo. Acceso público (todos pueden ver el grafo).
 app.get('/api/graph', (req, res) => {
-    if (!fs.existsSync(DATA_FILE)) return res.json({ nodes: [], edges: [] });
-    const data = fs.readFileSync(DATA_FILE);
-    res.json(JSON.parse(data));
+    if (!fs.existsSync(DATA_FILE)) {
+        return res.json({ nodes: [], edges: [] });
+    }
+    const raw = fs.readFileSync(DATA_FILE, 'utf8');
+    res.json(JSON.parse(raw));
 });
 
-// Guardar datos (AHORA PROTEGIDO)
+// ── POST /api/graph ──────────────────────────────────────────────────────────
+// Guarda el estado del grafo. Solo el admin (con token válido) puede hacerlo.
 app.post('/api/graph', (req, res) => {
-    const token = req.headers['authorization'];
-    
-    // Verifica que el token sea el correcto
-    if (token !== currentAdminToken) {
-        return res.status(403).send("No autorizado");
+    const userToken = req.headers['authorization'];
+
+    if (!currentAdminToken || userToken !== currentAdminToken) {
+        return res.status(403).json({ success: false, message: 'No autorizado' });
     }
 
-    const newData = req.body; // Aquí llega el nuevo estado del grafo sin los elementos borrados
-
-    // Sobrescribimos el archivo JSON con los nuevos datos
-    fs.writeFile(path.join(__dirname, 'data.json'), JSON.stringify(newData, null, 2), (err) => {
-        if (err) {
-            console.error("Error al guardar:", err);
-            return res.status(500).send("Error al guardar en el servidor");
-        }
-        console.log("Grafo actualizado permanentemente en data.json");
-        
-        // OPCIONAL: Aquí es donde también puedes actualizar el Excel si quieres
-        updateExcel(newData); 
-
-        res.send({ success: true });
-    });
+    fs.writeFileSync(DATA_FILE, JSON.stringify(req.body, null, 2));
+    res.json({ success: true });
 });
 
 app.listen(PORT, () => {
