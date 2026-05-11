@@ -258,10 +258,9 @@
                         'text-valign':        'center',
                         'text-outline-width': 2,
                         'text-outline-color': '#0f172a',
-                        // Tamaño proporcional al grado, con máximo calculado dinámicamente
-                        'width':    'mapData(degree, 0, data(maxDegree), 40, 120)',
-                        'height':   'mapData(degree, 0, data(maxDegree), 40, 120)',
-                        'font-size': '14px'
+                        'width':              40,
+                        'height':             40,
+                        'font-size':          '12px'
                     }
                 },
                 {
@@ -303,12 +302,27 @@
             ]
         });
 
-        // ── Actualiza degree y maxDegree en todos los nodos ─────────────────────
+        // ── Actualiza el tamaño visual de cada nodo ─────────────────────────────
+        // Usamos .style() directamente sobre cada nodo porque es la única forma
+        // fiable en Cytoscape de aplicar tamaños calculados dinámicamente.
+        // data(size) en el selector CSS no se refresca cuando cambia el dato.
         function updateNodeSizes() {
-            const maxDeg = Math.max(...cy.nodes().map(n => n.degree()), 1);
+            const MIN_SIZE = 40;
+            const MAX_SIZE = 120;
+
+            const degrees = cy.nodes().map(n => n.degree());
+            const maxDeg  = Math.max(...degrees, 1);
+
             cy.nodes().forEach(node => {
-                node.data('degree',    node.degree());
-                node.data('maxDegree', maxDeg);
+                const deg  = node.degree();
+                const size = Math.round(MIN_SIZE + (deg / maxDeg) * (MAX_SIZE - MIN_SIZE));
+                const fs   = Math.max(10, size * 0.25);
+
+                node.style({
+                    'width':     size,
+                    'height':    size,
+                    'font-size': fs
+                });
             });
         }
 
