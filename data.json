@@ -3062,25 +3062,6 @@
     },
     {
       "data": {
-        "source": "Mechu",
-        "target": "Pilotes",
-        "id": "24db326a-01b2-4c29-9f4c-a5dd4ec402f0"
-      },
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "group": "edges",
-      "removed": false,
-      "selected": false,
-      "selectable": true,
-      "locked": false,
-      "grabbable": true,
-      "pannable": true,
-      "classes": ""
-    },
-    {
-      "data": {
         "source": "Menchu",
         "target": "Gona",
         "id": "e3c41f05-8be4-4727-9f88-8b60b28a45fe"
@@ -3179,25 +3160,6 @@
         "source": "Algadi",
         "target": "Jorge",
         "id": "58bbaaaf-0256-4bc3-938c-bf1fc35688b2"
-      },
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "group": "edges",
-      "removed": false,
-      "selected": false,
-      "selectable": true,
-      "locked": false,
-      "grabbable": true,
-      "pannable": true,
-      "classes": ""
-    },
-    {
-      "data": {
-        "source": "Juan",
-        "target": "Maria",
-        "id": "10b0d25a-c8b2-44c5-8431-b1283bbc7b5c"
       },
       "position": {
         "x": 0,
