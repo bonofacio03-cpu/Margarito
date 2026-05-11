@@ -4,255 +4,338 @@
     <meta charset="UTF-8">
     <title>Margarito - Visualizador</title>
     <style>
-        body { background: #0f172a; color: #f1f5f9; font-family: 'Inter', sans-serif; margin: 0; padding: 20px; }
-        
-        /* Panel de control: solo visible para el admin */
-        #admin-panel { 
-            display: none; gap: 10px; margin-bottom: 20px; padding: 20px; 
-            background: #1e293b; border-radius: 12px; border: 1px solid #334155;
+        /* ── Layout base ─────────────────────────────────────────────────────── */
+        body {
+            background: #0f172a;
+            color: #f1f5f9;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 20px;
         }
-        /* Estilo para el buscador */
-        #search-container {
+
+        /* ── Panel admin (oculto para invitados) ─────────────────────────────── */
+        #admin-panel {
+            display: none;          /* Se muestra por JS solo si isAdmin === true */
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 20px;
             background: #1e293b;
-            padding: 15px;
             border-radius: 12px;
             border: 1px solid #334155;
         }
 
-        /* Clase de resaltado que aplicaremos por JS */
-        .highlighted {
-            border-width: 6px;
-            border-color: #f59e0b !important; /* Dorado */
-            line-color: #f59e0b !important;
-            target-arrow-color: #f59e0b !important;
-            font-size: 20px;
-            font-weight: bold;
-            z-index: 9999;
+        /* ── Buscador (visible para todos) ───────────────────────────────────── */
+        #search-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #1e293b;
+            border-radius: 12px;
+            border: 1px solid #334155;
         }
 
-        .faded {
-            opacity: 0.1;
-            events: no;
+        /* ── Campos compartidos ──────────────────────────────────────────────── */
+        input {
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            background: #0f172a;
+            color: white;
+            flex: 1;
         }
 
-        input { padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; flex: 1; }
-        button { padding: 12px 24px; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+        button {
+            padding: 12px 24px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
         button:hover { background: #2563eb; }
 
-        #cy { width: 100%; height: calc(100vh - 150px); background: #0f172a; border-radius: 16px; border: 1px solid #1e293b; }
-        
-        .mode-indicator { position: absolute; top: 20px; right: 20px; padding: 8px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; background: rgba(30, 41, 59, 0.8); }
+        /* ── Lienzo del grafo ────────────────────────────────────────────────── */
+        #cy {
+            width: 100%;
+            height: calc(100vh - 170px);
+            background: #0f172a;
+            border-radius: 16px;
+            border: 1px solid #1e293b;
+        }
 
+        /* ── Indicador de modo (esquina superior derecha) ────────────────────── */
+        .mode-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            background: rgba(30, 41, 59, 0.8);
+        }
     </style>
+
+    <!-- Cytoscape.js: librería de grafos interactivos -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
 </head>
 <body>
 
+    <!-- Panel exclusivo para el admin: añadir conexiones nuevas -->
     <div id="admin-panel">
-        <input type="text" id="nodeA" placeholder="Presa">
-        <input type="text" id="nodeB" placeholder="Depredador">
+        <input type="text" id="nodeA" placeholder="Persona A">
+        <input type="text" id="nodeB" placeholder="Persona B">
         <button onclick="addConnection()">Añadir Conexión</button>
     </div>
-    <div id="search-container" style="margin-bottom: 20px; display: flex; gap: 10px;">
-        <input type="text" id="searchInput" placeholder="Buscar nombre" onkeyup="searchNode()">
-        <button onclick="clearSearch()" style="background: #64748b;">Limpiar</button>
+
+    <!-- Buscador: filtra y resalta nodos por nombre -->
+    <div id="search-container">
+        <input
+            type="text"
+            id="searchInput"
+            placeholder="Buscar nombre…"
+            oninput="searchNode()"
+        >
+        <button onclick="clearSearch()" style="background:#64748b;">Limpiar</button>
     </div>
 
+    <!-- Etiqueta de modo en la esquina -->
     <div class="mode-indicator" id="status-tag">Modo Invitado</div>
+
+    <!-- Contenedor donde Cytoscape renderiza el grafo -->
     <div id="cy"></div>
 
     <script>
+        // ── Detección de modo admin ─────────────────────────────────────────────
+        // Un usuario es admin solo si:
+        //   1. La URL tiene ?admin=true
+        //   2. Tiene un token guardado en sessionStorage (lo recibió del servidor)
         const urlParams = new URLSearchParams(window.location.search);
-        const isAdmin = urlParams.get('admin') === 'true' && sessionStorage.getItem('margarito_token') !== null;
+        const isAdmin   = urlParams.get('admin') === 'true'
+                       && sessionStorage.getItem('margarito_token') !== null;
 
         if (isAdmin) {
             document.getElementById('admin-panel').style.display = 'flex';
-            document.getElementById('status-tag').innerText = "ADMINISTRADOR";
-            document.getElementById('status-tag').style.color = "#4ade80";
+            const tag = document.getElementById('status-tag');
+            tag.innerText = 'ADMINISTRADOR';
+            tag.style.color = '#4ade80';
         }
 
+        // ── Color determinista por nombre ───────────────────────────────────────
+        // Convierte el ID del nodo en un color HSL único y reproducible.
         function stringToColor(str) {
             let hash = 0;
             for (let i = 0; i < str.length; i++) {
                 hash = str.charCodeAt(i) + ((hash << 5) - hash);
             }
-            return `hsl(${hash % 360}, 70%, 60%)`;
+            return `hsl(${Math.abs(hash) % 360}, 70%, 60%)`;
         }
 
-        let cy = cytoscape({
+        // ── Inicialización de Cytoscape ─────────────────────────────────────────
+        const cy = cytoscape({
             container: document.getElementById('cy'),
             style: [
                 {
+                    // Nodos: tamaño proporcional al grado (número de conexiones)
                     selector: 'node',
                     style: {
-                        'background-color': ele => stringToColor(ele.id()),
-                        'label': 'data(id)',
-                        'color': '#fff',
-                        'text-valign': 'center',
+                        'background-color':  ele => stringToColor(ele.id()),
+                        'label':             'data(id)',
+                        'color':             '#fff',
+                        'text-valign':       'center',
                         'text-outline-width': 2,
                         'text-outline-color': '#0f172a',
-                        'width': 'mapData(degree, 0, 10, 40, 120)',
+                        'width':  'mapData(degree, 0, 10, 40, 120)',
                         'height': 'mapData(degree, 0, 10, 40, 120)',
                         'font-size': '14px'
                     }
                 },
                 {
+                    // Aristas: línea curva semitransparente
                     selector: 'edge',
                     style: {
-                        'width': 4,
-                        'line-color': '#475569',
+                        'width':       4,
+                        'line-color':  '#475569',
                         'curve-style': 'bezier',
-                        'opacity': 0.6
+                        'opacity':     0.6
                     }
                 },
                 {
+                    // Arista seleccionada: rojo brillante
                     selector: 'edge:selected',
                     style: {
                         'line-color': '#ef4444',
-                        'width': 6,
-                        'opacity': 1
+                        'width':      6,
+                        'opacity':    1
+                    }
+                },
+                {
+                    // Nodo/arista resaltado por la búsqueda: borde dorado
+                    selector: '.highlighted',
+                    style: {
+                        'border-width':        6,
+                        'border-color':        '#f59e0b',
+                        'line-color':          '#f59e0b',
+                        'target-arrow-color':  '#f59e0b',
+                        'font-size':           20,
+                        'font-weight':         'bold',
+                        'z-index':             9999
+                    }
+                },
+                {
+                    // Elemento no relevante en la búsqueda: muy transparente
+                    selector: '.faded',
+                    style: {
+                        'opacity': 0.1,
+                        'events':  'no'
                     }
                 }
             ]
         });
 
+        // ── Funciones exclusivas del admin ──────────────────────────────────────
+        if (isAdmin) {
 
-        // --- LÓGICA DE ELIMINACIÓN REFORZADA (SOLO ADMIN) ---
-
+            // Elimina nodos que quedaron sin ninguna conexión
             function cleanOrphans() {
-                const orphans = cy.nodes().filter(node => node.connectedEdges().length === 0);
-                if (orphans.length > 0) orphans.remove();
+                cy.nodes()
+                  .filter(node => node.connectedEdges().length === 0)
+                  .remove();
             }
-        
-            // 1. Borrado con Teclado
-            document.addEventListener('keydown', async function(e) {
-                if (e.key === 'Delete' || e.key === 'Backspace') {
-                    const selected = cy.$(':selected');
-                    if (selected.length > 0) {
-                        if (confirm("¿Eliminar elementos seleccionados permanentemente?")) {
-                            selected.remove();
-                            cleanOrphans();
-                            updateNodeSizes();
-                            await saveData(); // <--- IMPORTANTE: Esperar a que guarde
-                            console.log("Cambios guardados en el servidor");
-                        }
-                    }
-                }
-            });
-        
-            // 2. Borrado con Doble Click
-            cy.on('dblclick', 'edge', async function(evt){
-                if (confirm("¿Eliminar esta conexión permanentemente?")) {
-                    evt.target.remove();
+
+            // Borrar con tecla Delete o Backspace
+            document.addEventListener('keydown', (e) => {
+                if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+                const selected = cy.$(':selected');
+                if (selected.length === 0) return;
+
+                if (confirm('¿Eliminar los elementos seleccionados?')) {
+                    selected.remove();
                     cleanOrphans();
                     updateNodeSizes();
-                    await saveData(); // <--- IMPORTANTE: Esperar a que guarde
+                    saveData();
                 }
+            });
+
+            // Borrar una arista con doble clic sobre ella
+            cy.on('dblclick', 'edge', (evt) => {
+                if (!confirm('¿Eliminar esta conexión?')) return;
+                evt.target.remove();
+                cleanOrphans();
+                updateNodeSizes();
+                saveData();
             });
         }
 
+        // ── Actualiza el campo 'degree' de cada nodo ────────────────────────────
+        // Cytoscape usa ese valor en mapData para escalar el tamaño visual.
         function updateNodeSizes() {
             cy.nodes().forEach(node => {
                 node.data('degree', node.degree());
             });
         }
 
+        // ── Añadir una conexión nueva (solo admin) ──────────────────────────────
         async function addConnection() {
             if (!isAdmin) return;
+
             const a = document.getElementById('nodeA').value.trim();
             const b = document.getElementById('nodeB').value.trim();
             if (!a || !b || a === b) return;
 
+            // Crear nodos si no existen
             if (cy.getElementById(a).empty()) cy.add({ group: 'nodes', data: { id: a } });
             if (cy.getElementById(b).empty()) cy.add({ group: 'nodes', data: { id: b } });
-            
-            const exists = cy.edges().filter(e => 
-                (e.source().id() === a && e.target().id() === b) || 
-                (e.source().id() === b && e.target().id() === a)
-            ).length > 0;
 
-            if (!exists) {
+            // Comprobar que la arista no existe ya (en ninguna dirección)
+            const yaExiste = cy.edges().some(e =>
+                (e.source().id() === a && e.target().id() === b) ||
+                (e.source().id() === b && e.target().id() === a)
+            );
+
+            if (!yaExiste) {
                 cy.add({ group: 'edges', data: { source: a, target: b } });
                 updateNodeSizes();
                 cy.layout({ name: 'cose', animate: true }).run();
-                saveData();
+                await saveData();
             }
-            document.getElementById('nodeA').value = "";
-            document.getElementById('nodeB').value = "";
+
+            document.getElementById('nodeA').value = '';
+            document.getElementById('nodeB').value = '';
         }
 
+        // ── Guardar el estado del grafo en el servidor ──────────────────────────
         async function saveData() {
+            const token    = sessionStorage.getItem('margarito_token');
             const elements = cy.json().elements;
-            const token = sessionStorage.getItem('margarito_token');
 
             const response = await fetch('/api/graph', {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': token // Envíamos la llave secreta
+                method:  'POST',
+                headers: {
+                    'Content-Type':  'application/json',
+                    'Authorization': token
                 },
                 body: JSON.stringify(elements)
             });
 
             if (!response.ok) {
-                alert("Error de seguridad: No tienes permiso para guardar.");
-                window.location.href = "/"; // Expulsado por intentar hackear
+                alert('Error de autorización: no se pudo guardar.');
+                window.location.href = '/'; // Redirige si el token es inválido
             }
         }
 
+        // ── Cargar el grafo desde el servidor al iniciar ─────────────────────────
         async function loadData() {
-            const res = await fetch('/api/graph');
+            const res  = await fetch('/api/graph');
             const data = await res.json();
-            if (data && data.nodes) {
+
+            if (data && data.nodes && data.nodes.length > 0) {
                 cy.add(data);
                 updateNodeSizes();
                 cy.layout({ name: 'cose' }).run();
             }
         }
-        
+
+        // ── Búsqueda: resaltar nodo y sus vecinos ───────────────────────────────
         function searchNode() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
-            
-            // Si no hay nada escrito, limpiamos el filtro
-            if (searchTerm === "") {
+            const term = document.getElementById('searchInput').value.toLowerCase().trim();
+
+            if (term === '') {
                 clearSearch();
                 return;
             }
 
-            // Buscamos el nodo cuyo ID contenga el texto buscado
-            const targetNode = cy.nodes().filter(node => {
-                return node.id().toLowerCase().includes(searchTerm);
-            });
+            const matches = cy.nodes().filter(n => n.id().toLowerCase().includes(term));
 
-            if (targetNode.length > 0) {
-                // Quitamos clases anteriores
-                cy.elements().removeClass('highlighted').removeClass('faded');
+            if (matches.length === 0) return;
 
-                // Ponemos en "faded" (transparente) todo lo que NO sea el nodo o sus vecinos
-                const neighborhood = targetNode.neighborhood().add(targetNode);
-                cy.elements().difference(neighborhood).addClass('faded');
-                
-                // Resaltamos el nodo y sus conexiones directas
-                neighborhood.addClass('highlighted');
+            cy.elements().removeClass('highlighted faded');
 
-                // Centramos la cámara en el nodo encontrado con una animación suave
-                cy.animate({
-                    center: { eles: targetNode },
-                    zoom: 1.5,
-                    duration: 500
-                });
-            }
-        }
+            const vecindario = matches.neighborhood().add(matches);
+            cy.elements().difference(vecindario).addClass('faded');
+            vecindario.addClass('highlighted');
 
-        function clearSearch() {
-            document.getElementById('searchInput').value = "";
-            cy.elements().removeClass('highlighted').removeClass('faded');
             cy.animate({
-                fit: { eles: cy.elements(), padding: 50 },
+                center:   { eles: matches },
+                zoom:     1.5,
                 duration: 500
             });
         }
 
+        // ── Limpiar búsqueda: volver a la vista completa ────────────────────────
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            cy.elements().removeClass('highlighted faded');
+            cy.animate({
+                fit:      { eles: cy.elements(), padding: 50 },
+                duration: 500
+            });
+        }
+
+        // ── Arranque ────────────────────────────────────────────────────────────
         loadData();
     </script>
 </body>
