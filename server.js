@@ -55,7 +55,7 @@ app.post('/api/graph', (req, res) => {
 
         res.send({ success: true });
     });
-});/
+});
 
 app.listen(PORT, () => {
     console.log(`Servidor Margarito corriendo en http://localhost:${PORT}`);
