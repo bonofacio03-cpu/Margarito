@@ -1,0 +1,18 @@
+{
+  "name": "margarito",
+  "version": "2.0.0",
+  "description": "Visualizador de grafo de relaciones con persistencia en MongoDB Atlas",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "mongodb": "^6.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

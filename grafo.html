@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Margarito - Visualizador</title>
+    <style>
+        body {
+            background: #0f172a;
+            color: #f1f5f9;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        #admin-panel {
+            display: none;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: #1e293b;
+            border-radius: 12px;
+            border: 1px solid #334155;
+        }
+
+        #search-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #1e293b;
+            border-radius: 12px;
+            border: 1px solid #334155;
+        }
+
+        input {
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            background: #0f172a;
+            color: white;
+            flex: 1;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        button:hover { background: #2563eb; }
+
+        #cy {
+            width: 100%;
+            height: calc(100vh - 170px);
+            background: #0f172a;
+            border-radius: 16px;
+            border: 1px solid #1e293b;
+        }
+
+        .mode-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            background: rgba(30, 41, 59, 0.8);
+        }
+
+        /* ── Modal de confirmación ────────────────────────────────────────────── */
+        #confirm-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        #confirm-modal.visible {
+            display: flex;
+        }
+
+        .modal-box {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 28px 32px;
+            max-width: 360px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .modal-box p {
+            margin: 0 0 24px;
+            font-size: 15px;
+            color: #cbd5e1;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .modal-actions button.cancel {
+            background: #334155;
+        }
+
+        .modal-actions button.cancel:hover {
+            background: #475569;
+        }
+
+        .modal-actions button.danger {
+            background: #ef4444;
+        }
+
+        .modal-actions button.danger:hover {
+            background: #dc2626;
+        }
+
+        /* ── Toast de error ───────────────────────────────────────────────────── */
+        #toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: #ef4444;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: transform 0.3s ease;
+            z-index: 9999;
+        }
+
+        #toast.visible {
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
+</head>
+<body>
+
+    <div id="admin-panel">
+        <input type="text" id="nodeA" placeholder="Persona A">
+        <input type="text" id="nodeB" placeholder="Persona B">
+        <button id="btn-add">Añadir Conexión</button>
+    </div>
+
+    <div id="search-container">
+        <input type="text" id="searchInput" placeholder="Buscar nombre…">
+        <button id="btn-clear" style="background:#64748b;">Limpiar</button>
+    </div>
+
+    <div class="mode-indicator" id="status-tag">Modo Invitado</div>
+    <div id="cy"></div>
+
+    <!-- Modal de confirmación (reemplaza confirm()) -->
+    <div id="confirm-modal">
+        <div class="modal-box">
+            <p id="confirm-text">¿Eliminar los elementos seleccionados?</p>
+            <div class="modal-actions">
+                <button class="cancel" id="confirm-cancel">Cancelar</button>
+                <button class="danger" id="confirm-ok">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast de error no bloqueante -->
+    <div id="toast"></div>
+
+    <script>
+        // ── Utilidades de UI ────────────────────────────────────────────────────
+
+        /**
+         * Muestra un mensaje de error no bloqueante durante 3 segundos.
+         */
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('visible');
+            setTimeout(() => toast.classList.remove('visible'), 3000);
+        }
+
+        /**
+         * Sustituye window.confirm() con un modal propio no bloqueante.
+         * Devuelve una Promise<boolean>.
+         */
+        function showConfirm(text) {
+            return new Promise(resolve => {
+                const modal  = document.getElementById('confirm-modal');
+                const textEl = document.getElementById('confirm-text');
+                const okBtn  = document.getElementById('confirm-ok');
+                const cancelBtn = document.getElementById('confirm-cancel');
+
+                textEl.textContent = text;
+                modal.classList.add('visible');
+
+                function cleanup(result) {
+                    modal.classList.remove('visible');
+                    okBtn.removeEventListener('click', onOk);
+                    cancelBtn.removeEventListener('click', onCancel);
+                    resolve(result);
+                }
+
+                const onOk     = () => cleanup(true);
+                const onCancel = () => cleanup(false);
+
+                okBtn.addEventListener('click', onOk);
+                cancelBtn.addEventListener('click', onCancel);
+            });
+        }
+
+        // ── Detección de modo admin ─────────────────────────────────────────────
+        // El token se valida en el servidor en cada escritura.
+        // Aquí solo usamos su presencia para mostrar/ocultar la UI de edición.
+        // ?admin=true solo sirve como señal de intención; sin token, el servidor
+        // rechazará cualquier operación de escritura de todos modos.
+        const urlParams = new URLSearchParams(window.location.search);
+        const token     = sessionStorage.getItem('margarito_token');
+        const isAdmin   = urlParams.get('admin') === 'true' && token !== null;
+
+        if (isAdmin) {
+            document.getElementById('admin-panel').style.display = 'flex';
+            const tag = document.getElementById('status-tag');
+            tag.textContent  = 'ADMINISTRADOR';
+            tag.style.color  = '#4ade80';
+        }
+
+        // ── Color determinista por nombre ───────────────────────────────────────
+        function stringToColor(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            return `hsl(${Math.abs(hash) % 360}, 70%, 60%)`;
+        }
+
+        // ── Inicialización de Cytoscape ─────────────────────────────────────────
+        const cy = cytoscape({
+            container: document.getElementById('cy'),
+            style: [
+                {
+                    selector: 'node',
+                    style: {
+                        'background-color':   ele => stringToColor(ele.id()),
+                        'label':              'data(id)',
+                        'color':              '#fff',
+                        'text-valign':        'center',
+                        'text-outline-width': 2,
+                        'text-outline-color': '#0f172a',
+                        // Tamaño proporcional al grado, con máximo calculado dinámicamente
+                        'width':    'mapData(degree, 0, data(maxDegree), 40, 120)',
+                        'height':   'mapData(degree, 0, data(maxDegree), 40, 120)',
+                        'font-size': '14px'
+                    }
+                },
+                {
+                    selector: 'edge',
+                    style: {
+                        'width':       4,
+                        'line-color':  '#475569',
+                        'curve-style': 'bezier',
+                        'opacity':     0.6
+                    }
+                },
+                {
+                    selector: 'edge:selected',
+                    style: {
+                        'line-color': '#ef4444',
+                        'width':      6,
+                        'opacity':    1
+                    }
+                },
+                {
+                    selector: '.highlighted',
+                    style: {
+                        'border-width':       6,
+                        'border-color':       '#f59e0b',
+                        'line-color':         '#f59e0b',
+                        'target-arrow-color': '#f59e0b',
+                        'font-size':          20,
+                        'font-weight':        'bold',
+                        'z-index':            9999
+                    }
+                },
+                {
+                    selector: '.faded',
+                    style: {
+                        'opacity': 0.1,
+                        'events':  'no'
+                    }
+                }
+            ]
+        });
+
+        // ── Actualiza degree y maxDegree en todos los nodos ─────────────────────
+        function updateNodeSizes() {
+            const maxDeg = Math.max(...cy.nodes().map(n => n.degree()), 1);
+            cy.nodes().forEach(node => {
+                node.data('degree',    node.degree());
+                node.data('maxDegree', maxDeg);
+            });
+        }
+
+        // ── Lógica exclusiva del admin ──────────────────────────────────────────
+        if (isAdmin) {
+
+            function cleanOrphans() {
+                cy.nodes()
+                  .filter(node => node.connectedEdges().length === 0)
+                  .remove();
+            }
+
+            document.addEventListener('keydown', async (e) => {
+                if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+                const selected = cy.$(':selected');
+                if (selected.length === 0) return;
+
+                const ok = await showConfirm('¿Eliminar los elementos seleccionados?');
+                if (!ok) return;
+
+                selected.remove();
+                cleanOrphans();
+                updateNodeSizes();
+                await saveData();
+            });
+
+            cy.on('dblclick', 'edge', async (evt) => {
+                const ok = await showConfirm('¿Eliminar esta conexión?');
+                if (!ok) return;
+
+                evt.target.remove();
+                cleanOrphans();
+                updateNodeSizes();
+                await saveData();
+            });
+
+            document.getElementById('btn-add').addEventListener('click', addConnection);
+        }
+
+        document.getElementById('btn-clear').addEventListener('click', clearSearch);
+        document.getElementById('searchInput').addEventListener('input', searchNode);
+
+        // ── Añadir conexión ─────────────────────────────────────────────────────
+        async function addConnection() {
+            if (!isAdmin) return;
+
+            const a = document.getElementById('nodeA').value.trim();
+            const b = document.getElementById('nodeB').value.trim();
+            if (!a || !b || a === b) return;
+
+            if (cy.getElementById(a).empty()) cy.add({ group: 'nodes', data: { id: a } });
+            if (cy.getElementById(b).empty()) cy.add({ group: 'nodes', data: { id: b } });
+
+            const yaExiste = cy.edges().some(e =>
+                (e.source().id() === a && e.target().id() === b) ||
+                (e.source().id() === b && e.target().id() === a)
+            );
+
+            if (!yaExiste) {
+                cy.add({ group: 'edges', data: { source: a, target: b } });
+                updateNodeSizes();
+
+                // Guardar DESPUÉS de que el layout termine, no durante
+                cy.layout({ name: 'cose', animate: true })
+                  .on('layoutstop', () => saveData())
+                  .run();
+            }
+
+            document.getElementById('nodeA').value = '';
+            document.getElementById('nodeB').value = '';
+        }
+
+        // ── Guardar en el servidor ──────────────────────────────────────────────
+        async function saveData() {
+            try {
+                const elements = cy.json().elements;
+
+                // cy.json().elements puede devolver un objeto vacío si el grafo está vacío
+                const nodes = elements.nodes ?? [];
+                const edges = elements.edges ?? [];
+
+                const response = await fetch('/api/graph', {
+                    method:  'POST',
+                    headers: {
+                        'Content-Type':  'application/json',
+                        'Authorization': `Bearer ${token}`   // Estándar HTTP
+                    },
+                    body: JSON.stringify({ nodes, edges })
+                });
+
+                if (response.status === 403) {
+                    showToast('Sesión expirada. Vuelve a iniciar sesión.');
+                    setTimeout(() => window.location.href = '/', 2000);
+                    return;
+                }
+
+                if (!response.ok) {
+                    showToast('Error al guardar. Inténtalo de nuevo.');
+                }
+            } catch (err) {
+                console.error('saveData error:', err);
+                showToast('Sin conexión con el servidor.');
+            }
+        }
+
+        // ── Cargar el grafo ─────────────────────────────────────────────────────
+        async function loadData() {
+            try {
+                const res = await fetch('/api/graph');
+
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+                const data = await res.json();
+
+                if (data?.nodes?.length > 0) {
+                    cy.add(data);
+                    updateNodeSizes();
+                    cy.layout({ name: 'cose' }).run();
+                }
+            } catch (err) {
+                console.error('Error cargando grafo:', err);
+                showToast('No se pudo cargar el grafo. Recarga la página.');
+            }
+        }
+
+        // ── Búsqueda ────────────────────────────────────────────────────────────
+        function searchNode() {
+            const term = document.getElementById('searchInput').value.toLowerCase().trim();
+
+            if (term === '') { clearSearch(); return; }
+
+            const matches = cy.nodes().filter(n => n.id().toLowerCase().includes(term));
+            if (matches.length === 0) return;
+
+            cy.elements().removeClass('highlighted faded');
+            const vecindario = matches.neighborhood().add(matches);
+            cy.elements().difference(vecindario).addClass('faded');
+            vecindario.addClass('highlighted');
+
+            cy.animate({ center: { eles: matches }, zoom: 1.5, duration: 500 });
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            cy.elements().removeClass('highlighted faded');
+            cy.animate({ fit: { eles: cy.elements(), padding: 50 }, duration: 500 });
+        }
+
+        // ── Arranque ────────────────────────────────────────────────────────────
+        loadData();
+    </script>
+</body>
+</html>

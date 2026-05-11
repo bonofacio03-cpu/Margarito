@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Margarito - Inicio</title>
+    <style>
+        /* ── Reset y base ────────────────────────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            background: #0f172a;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 600px;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 4rem;
+            margin-bottom: 10px;
+            color: #3b82f6;
+            letter-spacing: -2px;
+        }
+
+        .subtitle { color: #94a3b8; margin-bottom: 40px; }
+
+        /* ── Cards ───────────────────────────────────────────────────────────── */
+        .cards { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
+
+        .card {
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 16px;
+            border: 1px solid #334155;
+            cursor: pointer;
+            transition: transform 0.3s, border-color 0.3s, background 0.3s;
+            width: 200px;
+        }
+
+        .card:hover {
+            transform: translateY(-10px);
+            border-color: #3b82f6;
+            background: #263349;
+        }
+
+        .card h2 { margin-top: 0; font-size: 1.5rem; }
+        .card p  { font-size: 0.9rem; margin-bottom: 0; color: #94a3b8; }
+
+        .admin-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            margin-top: 15px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            width: 100%;
+        }
+
+        .admin-btn:hover { background: #2563eb; }
+        .admin-btn:disabled { background: #1e40af; cursor: not-allowed; opacity: 0.7; }
+
+        /* ── Modal overlay ───────────────────────────────────────────────────── */
+        #login-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(4px);
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        #login-modal.visible { display: flex; }
+
+        .modal-box {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 16px;
+            padding: 32px;
+            width: 100%;
+            max-width: 380px;
+            text-align: left;
+        }
+
+        .modal-box h3 {
+            margin: 0 0 8px;
+            font-size: 1.1rem;
+            color: white;
+        }
+
+        .modal-box p {
+            margin: 0 0 20px;
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+
+        .modal-box label {
+            display: block;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Input contenedor para el icono del ojo */
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .input-wrapper input {
+            width: 100%;
+            padding: 12px 44px 12px 14px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            background: #0f172a;
+            color: white;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-wrapper input:focus {
+            border-color: #3b82f6;
+        }
+
+        /* Botón toggle visibilidad de contraseña */
+        .toggle-pass {
+            position: absolute;
+            right: 12px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #64748b;
+            font-size: 1.1rem;
+            padding: 4px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+        }
+
+        .toggle-pass:hover { color: #94a3b8; }
+
+        /* Mensaje de error dentro del modal */
+        #login-error {
+            display: none;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #fca5a5;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            margin-bottom: 16px;
+        }
+
+        #login-error.visible { display: block; }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .modal-actions button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .modal-actions .btn-cancel {
+            background: #334155;
+            color: white;
+        }
+
+        .modal-actions .btn-cancel:hover { background: #475569; }
+
+        .modal-actions .btn-login {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .modal-actions .btn-login:hover  { background: #2563eb; }
+        .modal-actions .btn-login:disabled { background: #1e40af; cursor: not-allowed; opacity: 0.7; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Deep Margarito</h1>
+        <p class="subtitle">San Agus</p>
+        <div class="cards">
+
+            <!-- Acceso público: va directo al grafo sin contraseña -->
+            <div class="card" id="card-guest" role="button" tabindex="0" aria-label="Entrar como invitado">
+                <h2>👁 Invitado</h2>
+                <p>Ver el grafo sin editar</p>
+            </div>
+
+            <!-- Acceso admin: abre el modal de contraseña -->
+            <div class="card">
+                <h2>🔑 Admin</h2>
+                <p>Editar conexiones</p>
+                <button class="admin-btn" id="btn-open-login">Entrar</button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ── Modal de login ──────────────────────────────────────────────────── -->
+    <div id="login-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-box">
+            <h3 id="modal-title">Acceso de administrador</h3>
+            <p>Introduce la contraseña para gestionar el grafo.</p>
+
+            <label for="pass-input">Contraseña</label>
+            <div class="input-wrapper">
+                <input
+                    type="password"
+                    id="pass-input"
+                    placeholder="••••••••"
+                    autocomplete="current-password"
+                >
+                <!-- Toggle mostrar/ocultar contraseña -->
+                <button class="toggle-pass" id="btn-toggle-pass" aria-label="Mostrar contraseña" type="button">
+                    👁
+                </button>
+            </div>
+
+            <div id="login-error" role="alert"></div>
+
+            <div class="modal-actions">
+                <button class="btn-cancel" id="btn-cancel">Cancelar</button>
+                <button class="btn-login"  id="btn-login">Entrar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ── Referencias al DOM ──────────────────────────────────────────────────
+        const modal       = document.getElementById('login-modal');
+        const passInput   = document.getElementById('pass-input');
+        const loginError  = document.getElementById('login-error');
+        const btnLogin    = document.getElementById('btn-login');
+        const btnCancel   = document.getElementById('btn-cancel');
+        const btnToggle   = document.getElementById('btn-toggle-pass');
+        const btnOpenLogin = document.getElementById('btn-open-login');
+        const cardGuest   = document.getElementById('card-guest');
+
+        // ── Navegación a la vista de invitado ───────────────────────────────────
+        function goGuest() {
+            window.location.href = '/grafo.html';
+        }
+
+        cardGuest.addEventListener('click', goGuest);
+        cardGuest.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') goGuest();
+        });
+
+        // ── Abrir / cerrar modal ────────────────────────────────────────────────
+        function openModal() {
+            modal.classList.add('visible');
+            passInput.value = '';
+            loginError.classList.remove('visible');
+            // Pequeño delay para que el CSS transition se aplique antes del focus
+            setTimeout(() => passInput.focus(), 50);
+        }
+
+        function closeModal() {
+            modal.classList.remove('visible');
+            passInput.value = '';
+            loginError.classList.remove('visible');
+            setLoading(false);
+        }
+
+        btnOpenLogin.addEventListener('click', openModal);
+        btnCancel.addEventListener('click', closeModal);
+
+        // Cerrar al hacer clic fuera del modal-box
+        modal.addEventListener('click', e => {
+            if (e.target === modal) closeModal();
+        });
+
+        // Cerrar con Escape
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && modal.classList.contains('visible')) closeModal();
+        });
+
+        // Confirmar con Enter dentro del input
+        passInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') submitLogin();
+        });
+
+        // ── Toggle mostrar/ocultar contraseña ────────────────────────────────────
+        btnToggle.addEventListener('click', () => {
+            const isHidden = passInput.type === 'password';
+            passInput.type = isHidden ? 'text' : 'password';
+            btnToggle.setAttribute('aria-label', isHidden ? 'Ocultar contraseña' : 'Mostrar contraseña');
+        });
+
+        // ── Estado de carga ─────────────────────────────────────────────────────
+        function setLoading(loading) {
+            btnLogin.disabled      = loading;
+            btnOpenLogin.disabled  = loading;
+            btnLogin.textContent   = loading ? 'Verificando…' : 'Entrar';
+        }
+
+        // ── Mostrar error en el modal ───────────────────────────────────────────
+        function showError(msg) {
+            loginError.textContent = msg;
+            loginError.classList.add('visible');
+            passInput.focus();
+            passInput.select();
+        }
+
+        // ── Llamada al servidor ─────────────────────────────────────────────────
+        async function submitLogin() {
+            const pass = passInput.value;
+            if (!pass) return;
+
+            setLoading(true);
+            loginError.classList.remove('visible');
+
+            try {
+                const response = await fetch('/api/login', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ password: pass })
+                });
+
+                const result = await response.json();
+
+                if (response.status === 429) {
+                    showError('Demasiados intentos. Espera 15 minutos e inténtalo de nuevo.');
+                    setLoading(false);
+                    return;
+                }
+
+                if (result.success) {
+                    sessionStorage.setItem('margarito_token', result.token);
+                    window.location.href = '/grafo.html?admin=true';
+                } else {
+                    showError('Contraseña incorrecta. Inténtalo de nuevo.');
+                    setLoading(false);
+                }
+
+            } catch {
+                showError('No se pudo conectar con el servidor. Comprueba tu conexión.');
+                setLoading(false);
+            }
+        }
+
+        btnLogin.addEventListener('click', submitLogin);
+    </script>
+</body>
+</html>
