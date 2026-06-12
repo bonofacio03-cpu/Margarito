@@ -301,10 +301,6 @@
             });
         }
 
-        /**
-         * Muestra el modal de renombrado para un nodo.
-         * Devuelve Promise<string|null>: el nuevo nombre o null si cancela.
-         */
         function showRenameModal(oldName) {
             return new Promise(resolve => {
                 const modal     = document.getElementById('rename-modal');
@@ -316,7 +312,6 @@
                 nameEl.textContent = oldName;
                 input.value = oldName;
                 modal.classList.add('visible');
-                // Seleccionar todo el texto para facilitar edición
                 setTimeout(() => { input.focus(); input.select(); }, 50);
 
                 function cleanup(result) {
@@ -340,9 +335,6 @@
             });
         }
 
-        /**
-         * Lógica de renombrado: recibe el nodo de Cytoscape directamente.
-         */
         async function doRenameNode(node) {
             const oldName = node.id();
             const newName = await showRenameModal(oldName);
@@ -454,12 +446,13 @@
             ]
         });
 
-        // ── Actualiza tamaños de nodos ──────────────────────────────────────────
+        // ── Tamaños de nodos y parámetros de layout ─────────────────────────────
+        const MIN_SIZE = 40;
+        const MAX_SIZE = 120;
+
         function updateNodeSizes() {
-            const MIN_SIZE = 40;
-            const MAX_SIZE = 120;
-            const degrees  = cy.nodes().map(n => n.degree());
-            const maxDeg   = Math.max(...degrees, 1);
+            const degrees = cy.nodes().map(n => n.degree());
+            const maxDeg  = Math.max(...degrees, 1);
 
             cy.nodes().forEach(node => {
                 const deg  = node.degree();
@@ -467,6 +460,43 @@
                 const fs   = Math.max(10, size * 0.25);
                 node.style({ 'width': size, 'height': size, 'font-size': fs });
             });
+        }
+
+        /**
+         * Devuelve la configuración del layout cose ajustada al tamaño
+         * máximo real de los nodos, para que nunca se solapen.
+         *
+         * nodeRepulsion: separación base entre nodos (crece con el tamaño).
+         * nodeOverlap:   porcentaje de solapamiento permitido (0 = ninguno).
+         * idealEdgeLength: longitud mínima de aristas, también escalada.
+         */
+        function getLayoutOptions(animate = true) {
+            const degrees = cy.nodes().map(n => n.degree());
+            const maxDeg  = Math.max(...degrees, 1);
+            // El nodo más grande tiene este radio en píxeles
+            const maxRadius = MAX_SIZE / 2;
+            // Repulsión proporcional al área del nodo más grande
+            const repulsion = Math.max(8000, Math.round(Math.PI * maxRadius * maxRadius * 4));
+
+            return {
+                name:              'cose',
+                animate,
+                animationDuration: animate ? 600 : 0,
+                // Sin solapamiento permitido
+                nodeOverlap:       0,
+                nodeRepulsion:     () => repulsion,
+                // Aristas suficientemente largas para los nodos grandes
+                idealEdgeLength:   () => MAX_SIZE * 1.8,
+                edgeElasticity:    () => 80,
+                gravity:           0.25,
+                numIter:           2000,
+                initialTemp:       200,
+                coolingFactor:     0.95,
+                minTemp:           1.0,
+                fit:               true,
+                padding:           40,
+                randomize:         false
+            };
         }
 
         // ── Lógica exclusiva del admin ──────────────────────────────────────────
@@ -480,7 +510,6 @@
 
             document.addEventListener('keydown', async (e) => {
                 if (e.key !== 'Delete' && e.key !== 'Backspace') return;
-                // No borrar si el foco está en un input
                 if (document.activeElement.tagName === 'INPUT') return;
                 const selected = cy.$(':selected');
                 if (selected.length === 0) return;
@@ -491,6 +520,7 @@
                 selected.remove();
                 cleanOrphans();
                 updateNodeSizes();
+                cy.layout(getLayoutOptions(true)).run();
                 await saveData();
             });
 
@@ -505,6 +535,7 @@
                 evt.target.remove();
                 cleanOrphans();
                 updateNodeSizes();
+                cy.layout(getLayoutOptions(true)).run();
                 await saveData();
             });
 
@@ -533,7 +564,7 @@
             if (!yaExiste) {
                 cy.add({ group: 'edges', data: { source: a, target: b } });
                 updateNodeSizes();
-                cy.layout({ name: 'cose', animate: true })
+                cy.layout(getLayoutOptions(true))
                   .on('layoutstop', () => saveData())
                   .run();
             }
@@ -583,7 +614,7 @@
                 if (data?.nodes?.length > 0) {
                     cy.add(data);
                     updateNodeSizes();
-                    cy.layout({ name: 'cose' }).run();
+                    cy.layout(getLayoutOptions(false)).run();
                 }
             } catch (err) {
                 console.error('Error cargando grafo:', err);
