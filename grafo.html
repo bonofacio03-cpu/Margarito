@@ -216,6 +216,9 @@
     </style>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
+    <script src="https://unpkg.com/layout-base/layout-base.js"></script>
+    <script src="https://unpkg.com/cose-base/cose-base.js"></script>
+    <script src="https://unpkg.com/cytoscape-fcose/cytoscape-fcose.js"></script>
 </head>
 <body>
 
@@ -233,6 +236,7 @@
 
     <div id="search-container">
         <input type="text" id="searchInput" placeholder="Buscar nombre…">
+        <button id="btn-relayout" style="background:#6366f1;" title="Redistribuir grafo">⟳ Redistribuir</button>
         <button id="btn-clear" style="background:#64748b;">Limpiar</button>
     </div>
 
@@ -410,10 +414,11 @@
                 {
                     selector: 'edge',
                     style: {
-                        'width':       4,
-                        'line-color':  '#475569',
-                        'curve-style': 'bezier',
-                        'opacity':     0.6
+                        'width':           2,
+                        'line-color':      '#475569',
+                        'curve-style':     'bezier',
+                        'opacity':         0.5,
+                        'line-style':      'solid'
                     }
                 },
                 {
@@ -463,41 +468,75 @@
         }
 
         /**
-         * Devuelve la configuración del layout cose ajustada al tamaño
-         * máximo real de los nodos, para que nunca se solapen.
-         *
-         * nodeRepulsion: separación base entre nodos (crece con el tamaño).
-         * nodeOverlap:   porcentaje de solapamiento permitido (0 = ninguno).
-         * idealEdgeLength: longitud mínima de aristas, también escalada.
+         * Devuelve la configuración de layout.
+         * Usa fcose si está disponible (mejor anti-overlap para grafos grandes),
+         * si no, cae a cose con parámetros robustos.
          */
         function getLayoutOptions(animate = true) {
-            const degrees = cy.nodes().map(n => n.degree());
-            const maxDeg  = Math.max(...degrees, 1);
-            // El nodo más grande tiene este radio en píxeles
-            const maxRadius = MAX_SIZE / 2;
-            // Repulsión proporcional al área del nodo más grande
-            const repulsion = Math.max(8000, Math.round(Math.PI * maxRadius * maxRadius * 4));
+            const nodeCount = cy.nodes().length;
+            const useFcose  = typeof cytoscapeFcose !== 'undefined' || cy.layoutUtilities !== undefined || _fcoseReady;
 
+            if (_fcoseReady) {
+                // ── fcose: separación garantizada por radio de nodo ──────────────
+                return {
+                    name:                    'fcose',
+                    animate,
+                    animationDuration:       animate ? 800 : 0,
+                    animationEasing:         'ease-out',
+                    fit:                     true,
+                    padding:                 60,
+                    // Fuerza de separación entre nodos — mayor = más espacio
+                    nodeRepulsion:           nodeCount > 80 ? 12000 : 8000,
+                    // Longitud ideal de arista en px
+                    idealEdgeLength:         MAX_SIZE * 2,
+                    edgeElasticity:          0.45,
+                    // Separación mínima entre bordes de nodos (px)
+                    nodeSeparation:          MAX_SIZE * 0.6,
+                    gravity:                 0.25,
+                    gravityRange:            3.8,
+                    gravityCompound:         1.0,
+                    gravityRangeCompound:    1.5,
+                    numIter:                 nodeCount > 100 ? 5000 : 2500,
+                    tile:                    true,          // distribuye componentes desconectados
+                    tilingPaddingVertical:   40,
+                    tilingPaddingHorizontal: 40,
+                    randomize:               true,          // punto de partida aleatorio → mejor distribución
+                    uniformNodeDimensions:   false,
+                    packComponents:          true,
+                    step:                    'all'
+                };
+            }
+
+            // ── Fallback: cose mejorado ──────────────────────────────────────────
+            const maxRadius = MAX_SIZE / 2;
+            const repulsion = Math.max(10000, Math.round(Math.PI * maxRadius * maxRadius * 5));
             return {
                 name:              'cose',
                 animate,
-                animationDuration: animate ? 600 : 0,
-                // Sin solapamiento permitido
-                nodeOverlap:       0,
+                animationDuration: animate ? 800 : 0,
+                nodeOverlap:       4,
                 nodeRepulsion:     () => repulsion,
-                // Aristas suficientemente largas para los nodos grandes
-                idealEdgeLength:   () => MAX_SIZE * 1.8,
+                idealEdgeLength:   () => MAX_SIZE * 2,
                 edgeElasticity:    () => 80,
-                gravity:           0.25,
-                numIter:           2000,
-                initialTemp:       200,
-                coolingFactor:     0.95,
+                gravity:           0.4,
+                numIter:           3000,
+                initialTemp:       300,
+                coolingFactor:     0.99,
                 minTemp:           1.0,
                 fit:               true,
-                padding:           40,
-                randomize:         false
+                padding:           60,
+                randomize:         true
             };
         }
+
+        // Registra fcose cuando sus scripts carguen
+        let _fcoseReady = false;
+        window.addEventListener('load', () => {
+            if (window.cytoscapeFcose) {
+                cytoscape.use(window.cytoscapeFcose);
+                _fcoseReady = true;
+            }
+        });
 
         // ── Lógica exclusiva del admin ──────────────────────────────────────────
         if (isAdmin) {
@@ -543,6 +582,10 @@
         }
 
         document.getElementById('btn-clear').addEventListener('click', clearSearch);
+        document.getElementById('btn-relayout').addEventListener('click', () => {
+            updateNodeSizes();
+            cy.layout(getLayoutOptions(true)).run();
+        });
         document.getElementById('searchInput').addEventListener('input', searchNode);
 
         // ── Añadir conexión ─────────────────────────────────────────────────────
@@ -614,7 +657,11 @@
                 if (data?.nodes?.length > 0) {
                     cy.add(data);
                     updateNodeSizes();
-                    cy.layout(getLayoutOptions(false)).run();
+
+                    // Espera un tick para que los scripts de fcose terminen de registrarse
+                    requestAnimationFrame(() => {
+                        cy.layout(getLayoutOptions(false)).run();
+                    });
                 }
             } catch (err) {
                 console.error('Error cargando grafo:', err);
